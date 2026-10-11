@@ -46,6 +46,10 @@
       if (hero && mine && !mine.fullMobile) Object.assign(mine, { fullMobile: hero.fullMobile, btnXm: hero.btnXm, btnYm: hero.btnYm, btnWm: hero.btnWm });
       (d.banners || []).forEach(b => { if (['b1', 'b2', 'b3'].includes(b.id)) b.active = false; });
     }
+    if ((d.v || 1) < 5) {
+      const hero = S.banners.find(b => b.id === 'b0'), mine = (d.banners || []).find(b => b.id === 'b0');
+      if (hero && mine && mine.full === hero.full && Number(mine.btnX) === 6.2) ['btnX', 'btnY', 'btnW', 'btnXm', 'btnYm', 'btnWm'].forEach(k => { mine[k] = hero[k]; });
+    }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;

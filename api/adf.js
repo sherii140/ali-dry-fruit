@@ -79,9 +79,22 @@ async function withLock(fn) {
 
 /* first run: copy the demo content from assets/seed.js */
 let seeded = false;
+/* one-time updates to existing stores when the built-in banner changes (only if the owner never moved its button) */
+async function patchData() {
+  if (Number(await cmd('GET', P + 'v')) >= 5) return;
+  await withLock(async () => {
+    const banners = parse(await cmd('GET', P + 'banners')) || [];
+    const b0 = banners.find(b => b.id === 'b0');
+    if (b0 && b0.full === 'assets/img/banner-main.jpg' && Number(b0.btnX) === 6.2) {
+      Object.assign(b0, { btnX: 4.7, btnY: 62.9, btnW: 23.1, btnXm: 4.9, btnYm: 41.5, btnWm: 46 });
+      await cmd('SET', P + 'banners', JSON.stringify(banners));
+    }
+    await cmd('SET', P + 'v', '5');
+  });
+}
 async function ensureSeed() {
   if (seeded) return;
-  if (await cmd('EXISTS', P + 'products')) { seeded = true; return; }
+  if (await cmd('EXISTS', P + 'products')) { await patchData(); seeded = true; return; }
   let s = fs.readFileSync(path.join(__dirname, '..', 'assets', 'seed.js'), 'utf8').trim();
   s = s.slice(s.indexOf('=') + 1).replace(/;\s*$/, '');
   const seed = JSON.parse(s);
@@ -90,6 +103,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
+      ['SET', P + 'v', '5'],
     ]);
   });
   seeded = true;
