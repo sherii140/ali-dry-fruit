@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api.php", "destination": "/api/adf" },
+    { "source": "/admin9196", "destination": "/admin9196/index.html" }
+  ],
+  "functions": {
+    "api/adf.js": { "includeFiles": "assets/seed.js", "maxDuration": 15 }
+  },
+  "headers": [
+    { "source": "/admin9196/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }
+  ]
+}

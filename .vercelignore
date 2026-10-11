@@ -1,0 +1,8 @@
+# Hostinger-only files (Vercel uses api/adf.js instead)
+api.php
+config.php
+config.sample.php
+data
+uploads
+.htaccess
+*.zip

@@ -1,0 +1,13 @@
+# Saved data and uploads on the server (never commit customer orders)
+data/store.php
+data/store.php.tmp
+data/.lock
+uploads/*
+!uploads/.htaccess
+# Database password
+config.php
+# Tools
+node_modules/
+.vercel/
+.DS_Store
+*.zip
