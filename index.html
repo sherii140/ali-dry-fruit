@@ -87,8 +87,9 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 .slide.cream{background:radial-gradient(circle at 75% 50%,#FFFFFF 0,transparent 45%),linear-gradient(105deg,#F8EEDC 0%,#FBF6EC 60%,#F1E3C8 100%)}
 .slide.dark{background:radial-gradient(circle at 80% 30%,#1D5F26 0,transparent 50%),linear-gradient(105deg,#0D3011 0%,#123F17 100%);color:var(--white)}
 .slide.full{display:block;background:var(--paper)}
-.slide.full .fimg,.slide.full picture,.slide.full picture img{display:block;width:100%;height:100%}
-.slide.full picture img{object-fit:contain}
+/* Image banners take the exact height of the image shown (desktop or phone version), so nothing is cut or letterboxed */
+.slide.full{aspect-ratio:auto;align-self:flex-start}
+.slide.full .fimg,.slide.full picture,.slide.full picture img{display:block;width:100%;height:auto}
 .stext{padding:0 20px 0 56px;display:flex;flex-direction:column;align-items:flex-start;gap:10px;position:relative;z-index:2}
 .urdu{font-family:var(--urdu);font-weight:700;font-size:22px;line-height:2;color:var(--green);direction:rtl}
 .dark .urdu{color:var(--gold-l)}
@@ -114,7 +115,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 .dots button.on{width:22px;background:var(--green)}
 
 .slide{container-type:inline-size}
-.slide.full .fimg{position:absolute;inset:0}
+.slide.full .fimg{position:relative}
 /* Clickable button on image banners: sized from the banner width so it lines up on every screen */
 .bbtn{position:absolute;z-index:2;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;gap:.55em;border-radius:999px;background:var(--green-d);color:var(--white);font-family:var(--ui);font-weight:500;letter-spacing:.01em;white-space:nowrap;overflow:hidden;isolation:isolate;
   padding:.8em 1.6em;font-size:clamp(11px,1.3vw,22px);
@@ -150,8 +151,8 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 }
 /* Moving promise line (right to left) */
 .marquee{margin-top:16px;background:var(--green-d);color:var(--white);overflow:hidden;border-block:1px solid #0B2A0F}
-.mq-track{display:flex;width:max-content;animation:mq 30s linear infinite}
-.marquee:hover .mq-track{animation-play-state:paused}
+.mq-track{display:flex;width:max-content;animation:mq 30s linear infinite;will-change:transform}
+@media(hover:hover){.marquee:hover .mq-track{animation-play-state:paused}}
 .mq-group{display:flex;align-items:center;flex-shrink:0}
 .mq-item{display:flex;align-items:center;gap:14px;padding:12px 26px 12px 0;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .mq-item svg{width:16px;height:16px;flex-shrink:0;fill:var(--gold-l)}
@@ -179,7 +180,8 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 .cat .lab small{font-size:11px;opacity:.82}
 .cat.on{outline:3px solid var(--green);outline-offset:2px}
 .cat .ctile{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(150deg,var(--green-soft),#FFFFFF 55%,var(--paper))}
-.cat .ctile img{width:52%;height:auto;margin-top:-22%}
+.cat .ctile{align-items:start;padding-top:16%}
+.cat .ctile img{width:48%;height:auto;margin-top:0}
 .cat.allcats{background:var(--green-d);color:var(--white)}
 .cat.allcats .ac{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:12px}
 .cat.allcats svg{width:34px;height:34px;fill:none;stroke:var(--gold-l);stroke-width:1.6;margin-bottom:4px}
@@ -424,7 +426,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
   .strip{font-size:10.5px;padding-inline:8px}
 }
 @media(hover:none){.pc:hover,.cat:hover{transform:none}.pc:hover .pimg>img{transform:none}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.mq-track{animation:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.mq-track{animation-duration:55s}}
 </style>
 </head>
 <body>
@@ -626,7 +628,7 @@ function bannerHTML(b,i){
   if(b.full){
     const n=(v,d)=>isFinite(parseFloat(v))?parseFloat(v):d;
     const btn=b.btnOn&&b.btnText?`<a class="bbtn ${esc(b.btnStyle||'green')}" href="#sale" ${linkAttr(b.link||'sale')} style="--x:${n(b.btnX,6.2)}%;--y:${n(b.btnY,68)}%;--bw:${n(b.btnW,20.8)};--xm:${n(b.btnXm,7)}%;--ym:${n(b.btnYm,75)}%;--bwm:${n(b.btnWm,50)}"><span>${esc(b.btnText)}</span><svg class="arw" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>`:'';
-    return `<div class="slide full${b.fullMobile?' hasm':''}"><a class="fimg" href="#sale" ${linkAttr(b.link||'sale')} aria-label="${esc(b.title||'Offer')}" ${btn?'tabindex="-1"':''}><picture>${b.fullMobile?`<source media="(max-width:600px)" srcset="${src(b.fullMobile)}">`:''}<img src="${src(b.full)}" alt="${esc(b.title||'')}"></picture></a>${btn}</div>`;
+    return `<div class="slide full${b.fullMobile?' hasm':''}"><a class="fimg" href="#sale" ${linkAttr(b.link||'sale')} aria-label="${esc(b.title||'Offer')}" ${btn?'tabindex="-1"':''}><picture>${b.fullMobile?`<source media="(max-width:600px)" srcset="${src(b.fullMobile)}" width="1080" height="1440">`:''}<img src="${src(b.full)}" alt="${esc(b.title||'')}" width="1536" height="864" fetchpriority="high"></picture></a>${btn}</div>`;
   }
   const imgs=(b.images||[]).filter(Boolean).slice(0,4);
   let artH='';
