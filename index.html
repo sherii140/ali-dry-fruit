@@ -170,23 +170,25 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 .shead p{color:var(--muted);font-size:13px;margin-top:2px}
 
 /* Category rail */
-.rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding:5px 5px 10px;margin-inline:-5px;scrollbar-width:none}
-.rail::-webkit-scrollbar{display:none}
-.cat{flex:1 0 150px;max-width:200px;scroll-snap-align:start;border:0;background:var(--paper);text-align:left;border-radius:12px;overflow:hidden;position:relative;aspect-ratio:1;box-shadow:var(--shadow);transition:transform .2s}
-.cat:hover{transform:translateY(-3px)}
-.cat>img{width:100%;height:100%;object-fit:cover}
-.cat .lab{position:absolute;inset:auto 0 0 0;padding:28px 12px 10px;background:linear-gradient(transparent,rgba(10,32,13,.86));color:var(--white)}
-.cat .lab b{display:block;font-size:13.5px;font-weight:600;line-height:1.25}
-.cat .lab small{font-size:11px;opacity:.82}
-.cat.on{outline:3px solid var(--green);outline-offset:2px}
+.colhead{display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,36px);padding-top:38px;padding-bottom:22px}
+.colhead::before,.colhead::after{content:"";width:clamp(36px,6vw,76px);height:2px;background:var(--green-d)}
+.colhead h2{font-family:var(--ui);font-weight:600;font-size:clamp(20px,2.6vw,30px);color:var(--ink);letter-spacing:0;text-align:center}
+.rail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 10px;max-width:1480px;margin-inline:auto}
+.cat{border:0;background:none;padding:0;text-align:center;display:flex;flex-direction:column;gap:12px;cursor:pointer;min-width:0}
+.cat .cimg{position:relative;aspect-ratio:1;overflow:hidden;background:#F6EFE3}
+.cat .cimg>img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.cat:hover .cimg>img{transform:scale(1.05)}
+.cat .cname{font-size:15px;font-weight:600;color:var(--ink);line-height:1.3;padding:0 4px 8px;transition:color .2s}
+.cat:hover .cname,.cat.on .cname{color:var(--green)}
+.cat.on .cimg{outline:3px solid var(--green);outline-offset:-3px}
 .cat .ctile{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(150deg,var(--green-soft),#FFFFFF 55%,var(--paper))}
-.cat .ctile{align-items:start;padding-top:16%}
-.cat .ctile img{width:48%;height:auto;margin-top:0}
-.cat.allcats{background:var(--green-d);color:var(--white)}
-.cat.allcats .ac{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:12px}
-.cat.allcats svg{width:34px;height:34px;fill:none;stroke:var(--gold-l);stroke-width:1.6;margin-bottom:4px}
-.cat.allcats b{font-size:14px;font-weight:600}
-.cat.allcats small{font-size:11px;opacity:.75}
+.cat .ctile img{width:46%;height:auto}
+.cat.allcats .cimg{background:var(--green-d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--white)}
+.cat.allcats svg{width:40px;height:40px;fill:none;stroke:var(--gold-l);stroke-width:1.6}
+.cat.allcats .cimg b{font-size:15px;font-weight:600}
+.cat.allcats .cimg small{font-size:12px;opacity:.75}
+@media(max-width:860px){.rail{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 8px}.cat{gap:8px}.cat .cname{font-size:13.5px;padding-bottom:4px}.colhead{padding-top:28px;padding-bottom:16px}}
 
 /* Product grid */
 .chip-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
@@ -392,8 +394,6 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
   .dot-img{border-width:3px}
   .marquee{margin-top:12px}
   .mq-item{font-size:11.5px;padding:10px 20px 10px 0;gap:10px}
-  .cat{flex:0 0 118px}
-  .cat .lab b{font-size:12px}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .pbody{padding:9px 8px 10px;gap:6px}
   .pbody h3{font-size:12.5px}
@@ -470,7 +470,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
   <div class="marquee" id="marquee" aria-label="Our promise"><div class="mq-track" id="mqTrack"></div></div>
 
   <section class="wrap" aria-labelledby="catH">
-    <div class="shead"><h2 id="catH">Shop by Category</h2></div>
+    <div class="colhead"><h2 id="catH">Shop By Collections</h2></div>
     <div class="rail" id="rail"></div>
   </section>
 
@@ -673,16 +673,12 @@ function restartSlider(){clearInterval(slider.timer);if(!reduce&&slider.n>1)slid
 /* ---------- categories ---------- */
 function renderRail(){
   const all=prods();
-  const used=new Set(cols().map(c=>c.image));
-  const first=all.find(p=>p.images&&p.images[0]&&!used.has(p.images[0]))||all.find(p=>p.images&&p.images[0]);
-  let h=`<button class="cat${st.cat==='all'&&!st.wish?' on':''}" data-cat="all">${first?`<img src="${src(first.images[0])}" alt="">`:''}<span class="lab"><b>All Products</b><small>${all.length} items</small></span></button>`;
   const home=cols().filter(c=>c.home);
-  h+=(home.length?home:tops()).map(c=>{
-    const n=all.filter(p=>(p.cols||[]).includes(c.id)).length;
+  let h=(home.length?home:tops()).slice(0,11).map(c=>{
     const im=c.image||((all.find(p=>(p.cols||[]).includes(c.id)&&p.images[0])||{}).images||[])[0];
-    return `<button class="cat${st.cat===c.id?' on':''}" data-cat="${esc(c.id)}">${im?`<img src="${src(im)}" alt="">`:'<span class="ctile"><img src="assets/img/ali.png" alt=""></span>'}<span class="lab"><b>${esc(c.name)}</b><small>${n?n+' item'+(n===1?'':'s'):'Coming soon'}</small></span></button>`;
+    return `<button class="cat${st.cat===c.id?' on':''}" data-cat="${esc(c.id)}"><span class="cimg">${im?`<img src="${src(im)}" alt="" loading="lazy">`:'<span class="ctile"><img src="assets/img/ali.png" alt=""></span>'}</span><span class="cname">${esc(c.name)}</span></button>`;
   }).join('');
-  h+=`<button class="cat allcats" id="allCats"><span class="ac"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><b>All Categories</b><small>${cols().length} collections</small></span></button>`;
+  h+=`<button class="cat allcats" id="allCats"><span class="cimg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><b>All Categories</b><small>${cols().length} collections</small></span><span class="cname">View All</span></button>`;
   $('#rail').innerHTML=h;
 }
 
