@@ -50,6 +50,15 @@
       const hero = S.banners.find(b => b.id === 'b0'), mine = (d.banners || []).find(b => b.id === 'b0');
       if (hero && mine && mine.full === hero.full && Number(mine.btnX) === 6.2) ['btnX', 'btnY', 'btnW', 'btnXm', 'btnYm', 'btnWm'].forEach(k => { mine[k] = hero[k]; });
     }
+    if ((d.v || 1) < 6) {
+      d.collections = d.collections || [];
+      S.collections.forEach(sc => {
+        const c = d.collections.find(x => x.id === sc.id);
+        const f = { name: sc.name, parent: sc.parent, home: sc.home, visible: sc.visible, pos: sc.pos, image: sc.image };
+        if (c) Object.assign(c, f); else d.collections.push(clone(sc));
+      });
+      S.products.forEach(sp => { const p = (d.products || []).find(x => x.id === sp.id); if (p) p.cols = [...new Set([...(p.cols || []), ...sp.cols])]; });
+    }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;

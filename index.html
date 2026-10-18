@@ -170,6 +170,26 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 .shead p{color:var(--muted);font-size:13px;margin-top:2px}
 
 /* Category rail */
+.colpage .hero,.colpage #marquee,.colpage #catSec,.colpage #benefit,.colpage #sale>.shead{display:none!important}
+.cpage{padding-top:18px}
+.cpbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:stretch;background:#F7F1E6;border-radius:14px;overflow:hidden;min-height:240px}
+.cptext{padding:28px 34px;display:flex;flex-direction:column;justify-content:center;gap:10px;min-width:0}
+.crumb{font-size:12.5px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap}
+.crumb a{color:var(--green);font-weight:500}
+.crumb a:hover{text-decoration:underline}
+.cptext h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,3.6vw,44px);color:var(--green-d);line-height:1.1}
+.cptext p{color:var(--muted);font-size:14px}
+.cpimg{position:relative;min-height:200px}
+.cpimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22%);mask-image:linear-gradient(90deg,transparent,#000 22%)}
+.cpimg .ctile{position:absolute;inset:0;display:grid;place-items:center}
+.cpimg .ctile img{position:static;width:30%;height:auto;-webkit-mask-image:none;mask-image:none}
+.cpsibs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:16px 0 4px}
+.cpsibs::-webkit-scrollbar{display:none}
+.cpsibs a{flex:0 0 auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 5px;font-size:13px;font-weight:500;background:var(--white);white-space:nowrap}
+.cpsibs a img{width:28px;height:28px;border-radius:50%;object-fit:cover}
+.cpsibs a.on{border-color:var(--green);background:var(--green-soft);color:var(--green-d);font-weight:600}
+.colpage #sale{padding-top:18px}
+@media(max-width:600px){.cpbar{grid-template-columns:1fr;min-height:0}.cpimg{order:-1;min-height:0;aspect-ratio:16/9}.cpimg img{-webkit-mask-image:linear-gradient(180deg,#000 60%,transparent);mask-image:linear-gradient(180deg,#000 60%,transparent)}.cptext{padding:6px 18px 20px}}
 .colhead{display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,36px);padding-top:38px;padding-bottom:22px}
 .colhead::before,.colhead::after{content:"";width:clamp(36px,6vw,76px);height:2px;background:var(--green-d)}
 .colhead h2{font-family:var(--ui);font-weight:600;font-size:clamp(20px,2.6vw,30px);color:var(--ink);letter-spacing:0;text-align:center}
@@ -469,7 +489,9 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
 
   <div class="marquee" id="marquee" aria-label="Our promise"><div class="mq-track" id="mqTrack"></div></div>
 
-  <section class="wrap" aria-labelledby="catH">
+  <section class="wrap cpage" id="colPage" hidden></section>
+
+  <section class="wrap" id="catSec" aria-labelledby="catH">
     <div class="colhead"><h2 id="catH">Shop By Collections</h2></div>
     <div class="rail" id="rail"></div>
   </section>
@@ -566,7 +588,10 @@ let cart=load('adf_cart3',{});           // {pid_w:{pid,w,qty}}
 let wish=load('adf_wish',[]);
 let mine=load('adf_my_orders',[]);
 let sel={};                              // chosen weight per product
-let st={cat:'all',q:'',wish:false,more:0};
+const PAGE_COL=new URLSearchParams(location.search).get('collection')||'';
+let st={cat:PAGE_COL||'all',q:'',wish:false,more:0};
+const colURL=id=>location.pathname+(id&&id!=='all'?'?collection='+encodeURIComponent(id):'');
+function goCol(id){location.href=colURL(id)+(id&&id!=='all'?'':'#sale');}
 let view='cart', last=null;
 
 /* ---------- helpers ---------- */
@@ -590,7 +615,8 @@ function art(p,cls=''){
 function renderChrome(){
   const s=S();
   $('#strip').textContent=s.announcement||'';$('#strip').hidden=!s.announcement;
-  document.body.classList.toggle('hdr-tr',(s.headerStyle||'transparent')==='transparent'&&(D.banners||[]).some(b=>b.active!==false));
+  document.body.classList.toggle('hdr-tr',!PAGE_COL&&(s.headerStyle||'transparent')==='transparent'&&(D.banners||[]).some(b=>b.active!==false));
+  document.body.classList.toggle('colpage',!!PAGE_COL);
   const items=(s.marquee||[]).filter(Boolean);
   const group=`<div class="mq-group" aria-hidden="__H__">${items.map(t=>`<div class="mq-item">${ICON.leaf}<span>${esc(t)}</span></div>`).join('')}</div>`;
   let reps=items.length?Math.max(2,Math.ceil(8/items.length)):0;
@@ -709,7 +735,7 @@ function card(p){
 }
 function chips(){
   const c=[];
-  if(st.cat!=='all')c.push(['cat',colName(st.cat)]);
+  if(st.cat!=='all'&&!PAGE_COL)c.push(['cat',colName(st.cat)]);
   if(st.wish)c.push(['wish','Wishlist']);
   if(st.q)c.push(['q','“'+st.q+'”']);
   $('#chips').innerHTML=c.map(([k,l])=>`<button class="fchip" data-clear="${k}">${esc(l)} <span aria-hidden="true">×</span><span class="sr">Remove filter</span></button>`).join('')+(c.length>1?'<button class="fchip" data-clear="all">Clear all</button>':'');
@@ -730,11 +756,25 @@ function renderGrid(){
   $('#more').innerHTML=!a.length?'':shown<a.length?`<button class="btn ghost" id="moreBtn">View More Products (${shown} of ${a.length})</button>`:`<small>Showing all ${a.length} product${a.length>1?'s':''}</small>`;
   chips();renderRail();
 }
-function renderAll(){renderChrome();renderHero();renderBenefit();renderGrid();counts();if($('#cart').classList.contains('open'))renderD();}
+function renderColPage(){
+  if(!PAGE_COL)return;
+  const c=(D.collections||[]).find(x=>x.id===PAGE_COL),all=prods();
+  const name=c?c.name:'Collection not found';
+  document.title=name+' · '+(S().storeName||'Ali Dry Fruit');
+  const n=all.filter(p=>(p.cols||[]).includes(PAGE_COL)).length;
+  const sibs=cols().filter(x=>x.home);
+  $('#colPage').hidden=false;
+  $('#colPage').innerHTML=`<div class="cpbar"><div class="cptext"><nav class="crumb" aria-label="Breadcrumb"><a href="${esc(colURL('all'))}">Home</a><span>/</span><span>${esc(name)}</span></nav>
+    <h1>${esc(name)}</h1><p>${c?(n?`${n} product${n===1?'':'s'}`:'New stock arriving soon'):'This collection is not available. Browse our other collections below.'}</p></div>
+    <div class="cpimg">${c&&c.image?`<img src="${src(c.image)}" alt="${esc(name)}">`:'<span class="ctile"><img src="assets/img/ali.png" alt=""></span>'}</div></div>
+    <nav class="cpsibs" aria-label="Collections">${sibs.map(x=>`<a class="${x.id===PAGE_COL?'on':''}" href="${esc(colURL(x.id))}">${x.image?`<img src="${src(x.image)}" alt="">`:''}${esc(x.name)}</a>`).join('')}</nav>`;
+  const on=$('#colPage .cpsibs a.on');if(on)on.scrollIntoView({block:'nearest',inline:'center'});
+}
+function renderAll(){renderChrome();renderColPage();renderHero();renderBenefit();renderGrid();counts();if($('#cart').classList.contains('open'))renderD();}
 function setCat(c,scroll){st.cat=c;st.wish=false;st.more=0;renderGrid();if(scroll)$('#sale').scrollIntoView({behavior:reduce?'auto':'smooth'});}
 function handleLink(l){
   if(!l||l==='sale'){$('#sale').scrollIntoView({behavior:reduce?'auto':'smooth'});return;}
-  if(l.startsWith('col:'))return setCat(l.slice(4),true);
+  if(l.startsWith('col:'))return goCol(l.slice(4));
   if(l.startsWith('prod:'))return openQV(l.slice(5));
   if(l.startsWith('url:'))window.open(l.slice(4),'_blank','noopener');
 }
@@ -882,7 +922,7 @@ document.addEventListener('click',e=>{
   if(t.classList.contains('brand')){e.preventDefault();try{history.scrollRestoration='manual';}catch(x){}window.scrollTo(0,0);location.reload();return;}
   if(d.close!==undefined){closeAll();return;}
   if(d.link){e.preventDefault();handleLink(d.link);return;}
-  if(d.cat){e.preventDefault();closeAll();setCat(d.cat,true);return;}
+  if(d.cat){e.preventDefault();closeAll();if(d.cat==='all'&&!PAGE_COL){setCat('all',true);return;}goCol(d.cat);return;}
   if(d.wish){e.stopPropagation();toggleWish(d.wish);return;}
   if(d.open){openQV(d.open);return;}
   if(d.thumb!==undefined){const p=prod($('#qv .info').dataset.pid);$('#qvMain').innerHTML=`<img src="${src(p.images[+d.thumb])}" alt="${esc(p.name)}">`;$$('#qv .thumbs button').forEach(b=>b.classList.toggle('on',b===t));return;}
@@ -905,6 +945,7 @@ document.addEventListener('click',e=>{
     if(d.qv)setTimeout(()=>closeAll(),500);
     return;}
   if(d.clear){const k=d.clear;
+    if(PAGE_COL&&(k==='all'||k==='cat')){goCol('all');return;}
     if(k==='all'){st={...st,cat:'all',q:'',wish:false,more:0};$('#q').value='';}
     else if(k==='cat')st.cat='all';else if(k==='wish')st.wish=false;else if(k==='q'){st.q='';$('#q').value='';}
     renderGrid();return;}

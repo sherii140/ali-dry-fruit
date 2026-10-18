@@ -80,8 +80,31 @@ async function withLock(fn) {
 /* first run: copy the demo content from assets/seed.js */
 let seeded = false;
 /* one-time updates to existing stores when the built-in banner changes (only if the owner never moved its button) */
+function readSeed() {
+  let s = fs.readFileSync(path.join(__dirname, '..', 'assets', 'seed.js'), 'utf8').trim();
+  return JSON.parse(s.slice(s.indexOf('=') + 1).replace(/;\s*$/, ''));
+}
+/* v6: the 11 homepage collections (Dates, Almonds, …) with their photos; older collections hidden */
+async function patchV6() {
+  const seed = readSeed();
+  await withLock(async () => {
+    const cols = parse(await cmd('GET', P + 'collections')) || [], prods = parse(await cmd('GET', P + 'products')) || [];
+    seed.collections.forEach(sc => {
+      const c = cols.find(x => x.id === sc.id);
+      const f = { name: sc.name, parent: sc.parent, home: sc.home, visible: sc.visible, pos: sc.pos, image: sc.image };
+      if (c) Object.assign(c, f); else cols.push(JSON.parse(JSON.stringify(sc)));
+    });
+    seed.products.forEach(sp => { const p = prods.find(x => x.id === sp.id); if (p) p.cols = [...new Set([...(p.cols || []), ...sp.cols])]; });
+    await multi([['SET', P + 'collections', JSON.stringify(cols)], ['SET', P + 'products', JSON.stringify(prods)], ['SET', P + 'v', '6']]);
+  });
+}
 async function patchData() {
-  if (Number(await cmd('GET', P + 'v')) >= 5) return;
+  const v = Number(await cmd('GET', P + 'v'));
+  if (v >= 6) return;
+  if (v < 5) await patchV5();
+  await patchV6();
+}
+async function patchV5() {
   await withLock(async () => {
     const banners = parse(await cmd('GET', P + 'banners')) || [];
     const b0 = banners.find(b => b.id === 'b0');
@@ -89,21 +112,18 @@ async function patchData() {
       Object.assign(b0, { btnX: 4.7, btnY: 62.9, btnW: 23.1, btnXm: 4.9, btnYm: 41.5, btnWm: 46 });
       await cmd('SET', P + 'banners', JSON.stringify(banners));
     }
-    await cmd('SET', P + 'v', '5');
   });
 }
 async function ensureSeed() {
   if (seeded) return;
   if (await cmd('EXISTS', P + 'products')) { await patchData(); seeded = true; return; }
-  let s = fs.readFileSync(path.join(__dirname, '..', 'assets', 'seed.js'), 'utf8').trim();
-  s = s.slice(s.indexOf('=') + 1).replace(/;\s*$/, '');
-  const seed = JSON.parse(s);
+  const seed = readSeed();
   await withLock(async () => {
     if (await cmd('EXISTS', P + 'products')) return;
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '5'],
+      ['SET', P + 'v', '6'],
     ]);
   });
   seeded = true;
