@@ -81,6 +81,10 @@
       if ((d.v || 1) < 7) applyProducts(S, 'p7', cols, prods);
       applyProducts(S, 'p8', cols, prods);
     }
+    if ((d.v || 1) < 9) {
+      const demo = { phone: '+92 300 0000000', whatsapp: '923000000000', address: 'Lahore, Pakistan' }, st = d.settings = d.settings || {};
+      Object.keys(demo).forEach(k => { if (!st[k] || st[k] === demo[k]) st[k] = S.settings[k]; });
+    }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;

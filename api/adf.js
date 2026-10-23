@@ -125,12 +125,23 @@ async function patchProducts(v) {
     await multi([['SET', P + 'collections', JSON.stringify(cols)], ['SET', P + 'products', JSON.stringify(prods)], ['SET', P + 'v', '8']]);
   });
 }
+/* v9: real phone, WhatsApp and address, only where the demo placeholder is still set */
+const DEMO_CONTACT = { phone: '+92 300 0000000', whatsapp: '923000000000', address: 'Lahore, Pakistan' };
+async function patchV9() {
+  const S = readSeed();
+  await withLock(async () => {
+    const st = parse(await cmd('GET', P + 'settings')) || {};
+    Object.keys(DEMO_CONTACT).forEach(k => { if (!st[k] || st[k] === DEMO_CONTACT[k]) st[k] = S.settings[k]; });
+    await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '9']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 8) return;
+  if (v >= 9) return;
   if (v < 5) await patchV5();
   if (v < 6) await patchV6();
-  await patchProducts(v);
+  if (v < 8) await patchProducts(v);
+  await patchV9();
 }
 async function patchV5() {
   await withLock(async () => {
@@ -151,7 +162,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '8'],
+      ['SET', P + 'v', '9'],
     ]);
   });
   seeded = true;

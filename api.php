@@ -139,9 +139,20 @@ function orders_del($ids) {
     $d = &fs(); foreach ($ids as $id) unset($d['orders'][$id]); fs_save($d);
 }
 
+/* replace the demo phone / WhatsApp / address with the real ones (only while the demo value is still set) */
+function patch_contact() {
+    $st = kv_get('settings');
+    if (!is_array($st)) return;
+    $demo = ['phone' => '+92 300 0000000', 'whatsapp' => '923000000000', 'address' => 'Lahore, Pakistan'];
+    $real = ['phone' => '+92 300 4198090', 'whatsapp' => '923004198090', 'address' => 'Roundabout, Adda Plot, Lahore'];
+    $ch = false;
+    foreach ($demo as $k => $v) if (empty($st[$k]) || $st[$k] === $v) { $st[$k] = $real[$k]; $ch = true; }
+    if ($ch) kv_set('settings', $st);
+}
+
 /* first run: copy demo content from assets/seed.js */
 function ensure_seed() {
-    if (kv_get('products') !== null) return;
+    if (kv_get('products') !== null) { patch_contact(); return; }
     $s = @file_get_contents(SEED_FILE);
     if ($s === false) return;
     $s = trim($s);
