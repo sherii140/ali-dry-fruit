@@ -457,7 +457,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
     <div class="hl">
       <button class="ib" id="menuBtn" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
-    <a class="brand" href="#top" aria-label="Ali Dry Fruit home">
+    <a class="brand" href="./" aria-label="Ali Dry Fruit home">
       <img class="m" src="assets/img/ali.png" alt="Ali">
       <img class="w" src="assets/img/dry.png" alt="Dry Fruit">
     </a>
@@ -521,7 +521,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
 <footer>
   <div class="wrap fgrid">
     <div>
-      <img class="flogo" src="assets/img/logo.png" alt="Ali Dry Fruit">
+      <a class="brand flink" href="./" aria-label="Ali Dry Fruit home"><img class="flogo" src="assets/img/logo.png" alt="Ali Dry Fruit"></a>
       <p id="fText"></p>
       <div class="social" id="social"></div>
     </div>
@@ -554,7 +554,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
 
 <div class="ov" id="ov"></div>
 <aside class="dr left" id="menu" aria-label="Menu">
-  <div class="dh"><a class="brand" href="#top"><img class="m" src="assets/img/ali.png" alt="Ali" style="height:32px"><img class="w" src="assets/img/dry.png" alt="Dry Fruit" style="height:11px;margin-bottom:4px"></a><button class="x" data-close aria-label="Close menu">&times;</button></div>
+  <div class="dh"><a class="brand" href="./"><img class="m" src="assets/img/ali.png" alt="Ali" style="height:32px"><img class="w" src="assets/img/dry.png" alt="Dry Fruit" style="height:11px;margin-bottom:4px"></a><button class="x" data-close aria-label="Close menu">&times;</button></div>
   <div class="db menu" id="menuBody"></div>
 </aside>
 <aside class="dr right" id="cart" aria-label="Cart">
@@ -919,7 +919,7 @@ function renderMenu(){
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,a,[data-open]');if(!t)return;
   const d=t.dataset;
-  if(t.classList.contains('brand')){e.preventDefault();try{history.scrollRestoration='manual';}catch(x){}window.scrollTo(0,0);location.reload();return;}
+  if(t.classList.contains('brand')){e.preventDefault();try{history.scrollRestoration='manual';}catch(x){}closeAll();window.scrollTo(0,0);const home=location.pathname;if(location.search||location.hash)location.href=home;else location.reload();return;}
   if(d.close!==undefined){closeAll();return;}
   if(d.link){e.preventDefault();handleLink(d.link);return;}
   if(d.cat){e.preventDefault();closeAll();if(d.cat==='all'&&!PAGE_COL){setCat('all',true);return;}goCol(d.cat);return;}
