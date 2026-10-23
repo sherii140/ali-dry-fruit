@@ -98,11 +98,34 @@ async function patchV6() {
     await multi([['SET', P + 'collections', JSON.stringify(cols)], ['SET', P + 'products', JSON.stringify(prods)], ['SET', P + 'v', '6']]);
   });
 }
+/* v7: the product photos (pouch + bowl) and rate-list prices; keeps anything the owner already changed */
+async function patchV7() {
+  const S = readSeed();
+  await withLock(async () => {
+    const cols = parse(await cmd('GET', P + 'collections')) || [], prods = parse(await cmd('GET', P + 'products')) || [];
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const pv = p => (p.variants || []).map(v => [v.w, Number(v.price)]);
+    const sc = S.collections.find(c => c.id === 'sweet-snacks'), lc = cols.find(c => c.id === 'sweet-snacks');
+    if (sc && lc && !lc.image) lc.image = sc.image;
+    (S.p7 ? S.p7.ids : []).forEach(id => {
+      const sp = S.products.find(x => x.id === id); if (!sp) return;
+      const p = prods.find(x => x.id === id), old = S.p7.prev[id];
+      if (!p) { prods.push(JSON.parse(JSON.stringify(sp))); return; }
+      p.cols = [...new Set([...(p.cols || []), ...sp.cols])];
+      if (old && same(p.images || [], old.i)) p.images = sp.images.slice();
+      else sp.images.forEach(im => { if (!(p.images || []).includes(im)) (p.images = p.images || []).push(im); });
+      if (old && same(pv(p), old.v)) p.variants = JSON.parse(JSON.stringify(sp.variants));
+      if (old && p.name === old.n) { p.name = sp.name; p.desc = sp.desc; p.tag = sp.tag; }
+    });
+    await multi([['SET', P + 'collections', JSON.stringify(cols)], ['SET', P + 'products', JSON.stringify(prods)], ['SET', P + 'v', '7']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 6) return;
+  if (v >= 7) return;
   if (v < 5) await patchV5();
-  await patchV6();
+  if (v < 6) await patchV6();
+  await patchV7();
 }
 async function patchV5() {
   await withLock(async () => {
@@ -123,7 +146,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '6'],
+      ['SET', P + 'v', '7'],
     ]);
   });
   seeded = true;
