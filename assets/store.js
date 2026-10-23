@@ -21,6 +21,23 @@
 
   function seed() { const d = clone(window.ADF_SEED); d.orders = []; d.seq = 1000; return d; }
   /* bring older saved data up to the latest demo version (adds new collections, keeps your edits) */
+  function applyProducts(S, key, cols, prods) {
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const pv = p => (p.variants || []).map(v => [v.w, Number(v.price)]);
+    const sc = S.collections.find(c => c.id === 'sweet-snacks'), lc = cols.find(c => c.id === 'sweet-snacks');
+    if (sc && lc && !lc.image) lc.image = sc.image;
+    const pk = S[key]; if (!pk) return;
+    pk.ids.forEach(id => {
+      const sp = S.products.find(x => x.id === id); if (!sp) return;
+      const p = prods.find(x => x.id === id), old = pk.prev[id];
+      if (!p) { prods.push(JSON.parse(JSON.stringify(sp))); return; }
+      p.cols = [...new Set([...(p.cols || []), ...sp.cols])];
+      if (old && same(p.images || [], old.i)) p.images = sp.images.slice();
+      else sp.images.forEach(im => { if (!(p.images || []).includes(im)) (p.images = p.images || []).push(im); });
+      if (old && same(pv(p), old.v)) p.variants = JSON.parse(JSON.stringify(sp.variants));
+      if (old && p.name === old.n) { p.name = sp.name; p.desc = sp.desc; p.tag = sp.tag; }
+    });
+  }
   function migrate(d) {
     const S = window.ADF_SEED;
     if ((d.v || 1) >= (S.v || 1)) return d;
@@ -59,22 +76,10 @@
       });
       S.products.forEach(sp => { const p = (d.products || []).find(x => x.id === sp.id); if (p) p.cols = [...new Set([...(p.cols || []), ...sp.cols])]; });
     }
-    if ((d.v || 1) < 7) {
+    if ((d.v || 1) < 8) {
       const cols = d.collections = d.collections || [], prods = d.products = d.products || [];
-      const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-      const pv = p => (p.variants || []).map(v => [v.w, Number(v.price)]);
-      const sc = S.collections.find(c => c.id === 'sweet-snacks'), lc = cols.find(c => c.id === 'sweet-snacks');
-      if (sc && lc && !lc.image) lc.image = sc.image;
-      (S.p7 ? S.p7.ids : []).forEach(id => {
-        const sp = S.products.find(x => x.id === id); if (!sp) return;
-        const p = prods.find(x => x.id === id), old = S.p7.prev[id];
-        if (!p) { prods.push(JSON.parse(JSON.stringify(sp))); return; }
-        p.cols = [...new Set([...(p.cols || []), ...sp.cols])];
-        if (old && same(p.images || [], old.i)) p.images = sp.images.slice();
-        else sp.images.forEach(im => { if (!(p.images || []).includes(im)) (p.images = p.images || []).push(im); });
-        if (old && same(pv(p), old.v)) p.variants = JSON.parse(JSON.stringify(sp.variants));
-        if (old && p.name === old.n) { p.name = sp.name; p.desc = sp.desc; p.tag = sp.tag; }
-      });
+      if ((d.v || 1) < 7) applyProducts(S, 'p7', cols, prods);
+      applyProducts(S, 'p8', cols, prods);
     }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
