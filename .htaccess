@@ -6,3 +6,10 @@ DirectoryIndex index.html
     Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>
+
+# Hostinger: hide repo/Vercel-only files
+<FilesMatch "^(README\.md|vercel\.json|\.vercelignore|\.gitignore|config\.sample\.php)$">
+  Require all denied
+</FilesMatch>
+RedirectMatch 404 ^/api/
+RedirectMatch 404 /\.git
