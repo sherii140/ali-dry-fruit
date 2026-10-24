@@ -160,12 +160,11 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 }
 /* Moving promise line (right to left) */
 .marquee{margin-top:16px;background:var(--green-d);color:var(--white);overflow:hidden;border-block:1px solid #0B2A0F}
-.mq-track{display:flex;width:max-content;animation:mq 30s linear infinite;will-change:transform}
-@media(hover:hover){.marquee:hover .mq-track{animation-play-state:paused}}
+.mq-track{display:flex;width:max-content;animation:mq 30s linear infinite!important;animation-play-state:running!important;will-change:transform}
 .mq-group{display:flex;align-items:center;flex-shrink:0}
 .mq-item{display:flex;align-items:center;gap:14px;padding:12px 26px 12px 0;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .mq-item svg{width:16px;height:16px;flex-shrink:0;fill:var(--gold-l)}
-@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes mq{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
 
 /* No-photo tile */
 .soon{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:linear-gradient(160deg,var(--green-soft),var(--paper));text-align:center;padding:12px}
@@ -472,7 +471,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
   .strip{font-size:10.5px;padding-inline:8px}
 }
 @media(hover:none){.pc:hover,.cat:hover{transform:none}.pc:hover .pimg>img{transform:none}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.mq-track{animation-duration:55s}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.mq-track{animation-duration:55s!important}}
 </style>
 </head>
 <body>
