@@ -88,6 +88,7 @@
     if ((d.v || 1) < 10) { const st = d.settings = d.settings || {}; if (st.email === 'orders@alidryfruit.pk') st.email = ''; if (st.codAdvance === undefined) st.codAdvance = 20; }
     if ((d.v || 1) < 11) { const st = d.settings = d.settings || {}; if (st.codAdvance === undefined || Number(st.codAdvance) === 20) st.codAdvance = 30; }
     if ((d.v || 1) < 12) { const st = d.settings = d.settings || {}; st.pay = st.pay || {}; ['easypaisa', 'jazzcash', 'bank'].forEach(k => { const cur = String(st.pay[k] || ''); if (!cur.trim() || /XX/.test(cur)) st.pay[k] = S.settings.pay[k]; }); }
+    if ((d.v || 1) < 13) { const b0 = (d.banners || []).find(b => b.id === 'b0'), sb = S.banners.find(b => b.id === 'b0'); if (b0 && sb && b0.fullMobile === 'assets/img/banner-main-mobile.jpg') { b0.fullMobile = sb.fullMobile; b0.mText = sb.mText; } }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;

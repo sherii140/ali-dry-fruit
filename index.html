@@ -116,6 +116,15 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 
 .slide{container-type:inline-size}
 .slide.full .fimg{position:relative}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:800;font-display:swap;src:url(assets/fonts/playfair-display-latin-800-normal.woff2) format('woff2')}
+/* Phone banner headline as real text (sharp on every screen); only shown with the phone image it was made for */
+.mtext{display:none;position:absolute;z-index:1;left:5.2cqw;right:4cqw;top:12.6cqw;pointer-events:none;font-family:var(--ui);color:#1F3A1C}
+.mtext .k{display:flex;align-items:center;gap:2.4cqw;font-size:2.3cqw;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:#2B3A27}
+.mtext .k::before,.mtext .k::after{content:"";width:7cqw;height:1px;background:currentColor;opacity:.6}
+.mtext h2{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:8.5cqw;line-height:1.08;letter-spacing:-.01em;white-space:nowrap;margin:2.4cqw 0 0;color:#173F17}
+.mtext h2 span{display:block;background:linear-gradient(180deg,#A8731F 0%,#7A4E12 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mtext p{font-size:2.9cqw;font-weight:400;margin-top:2.6cqw;white-space:nowrap;color:#1E2A1C;letter-spacing:.005em}
+@media(max-width:600px){.slide.hasm .mtext{display:block}}
 /* Clickable button on image banners: sized from the banner width so it lines up on every screen */
 .bbtn{position:absolute;z-index:2;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;gap:.55em;border-radius:999px;background:var(--green-d);color:var(--white);font-family:var(--ui);font-weight:500;letter-spacing:.01em;white-space:nowrap;overflow:hidden;isolation:isolate;
   padding:.8em 1.6em;font-size:clamp(11px,1.3vw,22px);
@@ -675,7 +684,8 @@ function bannerHTML(b,i){
   if(b.full){
     const n=(v,d)=>isFinite(parseFloat(v))?parseFloat(v):d;
     const btn=b.btnOn&&b.btnText?`<a class="bbtn ${esc(b.btnStyle||'green')}" href="#sale" ${linkAttr(b.link||'sale')} style="--x:${n(b.btnX,6.2)}%;--y:${n(b.btnY,68)}%;--bw:${n(b.btnW,20.8)};--xm:${n(b.btnXm,7)}%;--ym:${n(b.btnYm,75)}%;--bwm:${n(b.btnWm,50)}"><span>${esc(b.btnText)}</span><svg class="arw" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>`:'';
-    return `<div class="slide full${b.fullMobile?' hasm':''}"><a class="fimg" href="#sale" ${linkAttr(b.link||'sale')} aria-label="${esc(b.title||'Offer')}" ${btn?'tabindex="-1"':''}><picture>${b.fullMobile?`<source media="(max-width:600px)" srcset="${src(b.fullMobile)}" width="1080" height="1440">`:''}<img src="${src(b.full)}" alt="${esc(b.title||'')}" width="1536" height="864" fetchpriority="high"></picture></a>${btn}</div>`;
+    const mt=b.mText&&b.fullMobile&&b.mText.img===b.fullMobile?`<div class="mtext" aria-hidden="true">${b.mText.kicker?`<div class="k">${esc(b.mText.kicker)}</div>`:''}<h2>${esc(b.mText.t1||'')}${b.mText.t2?`<span>${esc(b.mText.t2)}</span>`:''}</h2>${b.mText.sub?`<p>${esc(b.mText.sub)}</p>`:''}</div>`:'';
+    return `<div class="slide full${b.fullMobile?' hasm':''}"><a class="fimg" href="#sale" ${linkAttr(b.link||'sale')} aria-label="${esc(b.title||'Offer')}" ${btn?'tabindex="-1"':''}>${mt}<picture>${b.fullMobile?`<source media="(max-width:600px)" srcset="${src(b.fullMobile)}" width="1080" height="1440">`:''}<img src="${src(b.full)}" alt="${esc(b.title||'')}" width="1536" height="864" fetchpriority="high"></picture></a>${btn}</div>`;
   }
   const imgs=(b.images||[]).filter(Boolean).slice(0,4);
   let artH='';

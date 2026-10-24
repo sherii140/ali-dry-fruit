@@ -154,6 +154,13 @@ function patch_contact() {
     if (!isset($st['pay']) || !is_array($st['pay'])) $st['pay'] = ['cod' => true];
     foreach ($realPay as $k => $v) { $cur = (string)($st['pay'][$k] ?? ''); if (trim($cur) === '' || strpos($cur, 'XX') !== false) { $st['pay'][$k] = $v; $ch = true; } }
     if ($ch) kv_set('settings', $st);
+    // sharp phone hero: text-free photo + headline as real text
+    $bs = kv_get('banners');
+    if (is_array($bs)) foreach ($bs as $i => $b) if (($b['id'] ?? '') === 'b0' && ($b['fullMobile'] ?? '') === 'assets/img/banner-main-mobile.jpg') {
+        $bs[$i]['fullMobile'] = 'assets/img/banner-main-mobile-bg.jpg';
+        $bs[$i]['mText'] = ['img' => 'assets/img/banner-main-mobile-bg.jpg', 'kicker' => 'Pure Goodness From Nature', 't1' => 'Naturally Nutritious,', 't2' => 'Freshly Packed', 'sub' => 'Premium quality dry fruits for a healthier, happier you.'];
+        kv_set('banners', $bs);
+    }
 }
 
 /* first run: copy demo content from assets/seed.js */

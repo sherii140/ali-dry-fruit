@@ -160,8 +160,21 @@ async function patchV12() {   // real Easypaisa / JazzCash / MCB details where t
     await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '12']]);
   });
 }
+const PHONE_HERO = {"img": "assets/img/banner-main-mobile-bg.jpg", "kicker": "Pure Goodness From Nature", "t1": "Naturally Nutritious,", "t2": "Freshly Packed", "sub": "Premium quality dry fruits for a healthier, happier you."};
+async function patchV13() {   // sharp phone hero: text-free photo + headline as real text
+  await withLock(async () => {
+    const bs = parse(await cmd('GET', P + 'banners')) || [], b0 = bs.find(b => b.id === 'b0');
+    if (b0 && b0.fullMobile === 'assets/img/banner-main-mobile.jpg') { b0.fullMobile = PHONE_HERO.img; b0.mText = PHONE_HERO; }
+    await multi([['SET', P + 'banners', JSON.stringify(bs)], ['SET', P + 'v', '13']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
+  if (v >= 13) return;
+  if (v < 12) await patchData12(v);
+  await patchV13();
+}
+async function patchData12(v) {
   if (v >= 12) return;
   if (v < 9) await patchData9(v);
   if (v < 10) await patchV10();
@@ -193,7 +206,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '12'],
+      ['SET', P + 'v', '13'],
     ]);
   });
   seeded = true;
