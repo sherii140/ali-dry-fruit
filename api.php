@@ -150,6 +150,9 @@ function patch_contact() {
     if (($st['email'] ?? '') === 'orders@alidryfruit.pk') { $st['email'] = ''; $ch = true; }
     if (!isset($st['codAdvance']) || (empty($st['adv30']) && (float)$st['codAdvance'] === 20.0)) { $st['codAdvance'] = 30; $st['adv30'] = 1; $ch = true; }
     elseif (empty($st['adv30'])) { $st['adv30'] = 1; $ch = true; }
+    $realPay = ['easypaisa' => '0300-8572361', 'jazzcash' => '0300-8572361', 'bank' => "MCB Bank, Lake City, Lahore\nTitle: Ali Dry Fruit Khajure\nIBAN: PK72 MUCB 0613 9365 4100 2037"];
+    if (!isset($st['pay']) || !is_array($st['pay'])) $st['pay'] = ['cod' => true];
+    foreach ($realPay as $k => $v) { $cur = (string)($st['pay'][$k] ?? ''); if (trim($cur) === '' || strpos($cur, 'XX') !== false) { $st['pay'][$k] = $v; $ch = true; } }
     if ($ch) kv_set('settings', $st);
 }
 

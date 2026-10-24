@@ -152,12 +152,21 @@ async function patchV11() {   // COD advance 20% → 30%
     await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '11']]);
   });
 }
+const REAL_PAY = {"easypaisa": "0300-8572361", "jazzcash": "0300-8572361", "bank": "MCB Bank, Lake City, Lahore\nTitle: Ali Dry Fruit Khajure\nIBAN: PK72 MUCB 0613 9365 4100 2037"};
+async function patchV12() {   // real Easypaisa / JazzCash / MCB details where the demo placeholder (with XX) is still set
+  await withLock(async () => {
+    const st = parse(await cmd('GET', P + 'settings')) || {}; st.pay = st.pay || {};
+    Object.keys(REAL_PAY).forEach(k => { const cur = String(st.pay[k] || ''); if (!cur.trim() || /XX/.test(cur)) st.pay[k] = REAL_PAY[k]; });
+    await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '12']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 11) return;
+  if (v >= 12) return;
   if (v < 9) await patchData9(v);
   if (v < 10) await patchV10();
-  await patchV11();
+  if (v < 11) await patchV11();
+  await patchV12();
 }
 async function patchData9(v) {
   if (v < 5) await patchV5();
@@ -184,7 +193,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '11'],
+      ['SET', P + 'v', '12'],
     ]);
   });
   seeded = true;
