@@ -876,8 +876,8 @@ function renderD(){
     const o=last,s=S();$('#dT').textContent=o.offline?'Almost Done':'Order Placed';F.hidden=true;
     const payTxt=String((s.pay||{})[o.pay]||'').replace(/\n/g,'<br>');
     const adv=o.advance??ADF.advanceOf(s,o.pay,o.total);
-    const how=o.offline?'Tap the button below to send your order on WhatsApp with your payment screenshot. We will confirm it there.':o.pay==='cod'&&adv>0?`We received your advance screenshot for <b>${fmt(adv)}</b>. We will check the payment and call you before dispatch. Pay the remaining <b>${fmt(o.total-adv)}</b> to the rider.`:o.pay==='cod'?'We will call you to confirm before dispatch.':`We received your payment screenshot for <b>${fmt(o.total)}</b>. We will check it and confirm your order on WhatsApp.`;
-    const msg=`Order ${o.id} · ${s.storeName||'Ali Dry Fruit'}\n`+o.items.map(i=>`• ${i.name} (${i.w}) x${i.qty} = ${fmt(i.price*i.qty)}`).join('\n')+`\n\nSubtotal: ${fmt(o.sub)}\nDelivery: ${o.ship?fmt(o.ship):'Free'}\nTotal: ${fmt(o.total)} (${PAYN[o.pay]})`+(adv>0?`\nPaid now: ${fmt(adv)}${o.proof?' (screenshot uploaded)':''}`+(o.total-adv>0?`\nPay on delivery: ${fmt(o.total-adv)}`:''):'')+`\n\nName: ${o.customer.name}\nPhone: ${o.customer.phone}\nCity: ${o.customer.city}\nAddress: ${o.customer.addr}`+(o.customer.notes?`\nNotes: ${o.customer.notes}`:'');
+    const how=o.offline?'Tap the button below to send your order on WhatsApp with your payment screenshot. We will confirm it there.':o.pay==='cod'&&adv>0?(o.proof?`We received your advance screenshot for <b>${fmt(adv)}</b>. We will check the payment and call you before dispatch. Pay the remaining <b>${fmt(o.total-adv)}</b> to the rider.`:`Our team will contact you to collect the ${fmt(adv)} advance before dispatch. Pay the remaining <b>${fmt(o.total-adv)}</b> to the rider.`):o.pay==='cod'?'We will call you to confirm before dispatch.':`We received your payment screenshot for <b>${fmt(o.total)}</b>. We will check it and confirm your order on WhatsApp.`;
+    const msg=`Order ${o.id} · ${s.storeName||'Ali Dry Fruit'}\n`+o.items.map(i=>`• ${i.name} (${i.w}) x${i.qty} = ${fmt(i.price*i.qty)}`).join('\n')+`\n\nSubtotal: ${fmt(o.sub)}\nDelivery: ${o.ship?fmt(o.ship):'Free'}\nTotal: ${fmt(o.total)} (${PAYN[o.pay]})`+(adv>0?`\n${o.pay==='cod'&&!o.proof?'Advance due':'Paid now'}: ${fmt(adv)}${o.proof?' (screenshot uploaded)':''}`+(o.total-adv>0?`\nPay on delivery: ${fmt(o.total-adv)}`:''):'')+`\n\nName: ${o.customer.name}\nPhone: ${o.customer.phone}\nCity: ${o.customer.city}\nAddress: ${o.customer.addr}`+(o.customer.notes?`\nNotes: ${o.customer.notes}`:'');
     B.innerHTML=`<div class="done"><div class="tick">${ICON.check}</div><h4>Thank you, ${esc(o.customer.name.split(' ')[0])}!</h4><p>Order <b>${esc(o.id)}</b> · ${fmt(o.total)}</p><p>${how}</p><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink(msg))}">${o.offline?'Send Order on WhatsApp':'Confirm on WhatsApp'}</a><button class="btn ghost" data-close>Continue shopping</button></div>`;
     return;
   }
@@ -902,7 +902,7 @@ function renderD(){
     <div class="lbl">Payment method</div>
     ${pays.map((k,i)=>`<label class="pay"><input type="radio" name="pay" value="${k}" ${i?'':'checked'}>${PAYN[k]}</label>`).join('')}
     <div class="pinfo" id="pinfo"></div>
-    <div id="proofBox"><div class="lbl">Payment screenshot <span class="req">*</span></div>
+    <div id="proofBox"><div class="lbl">Payment screenshot <span class="req" id="proofReq">*</span><span id="proofOpt" style="text-transform:none;letter-spacing:0;font-weight:500" hidden> (optional)</span></div>
       <label class="upbox${proofData?' has':''}" for="cProof"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><span id="proofTxt">${proofData?'Screenshot added · tap to change':'Upload payment screenshot'}</span>${proofData?`<img src="${proofData}" alt="Payment screenshot">`:''}</label>
       <input type="file" id="cProof" accept="image/*" hidden></div>
     <div class="err" id="err" role="alert"></div>`;
@@ -919,13 +919,13 @@ function payInfo(){
   const r=document.querySelector('input[name=pay]:checked');if(!r||!$('#pinfo'))return;
   const v=r.value,s=S(),t=totals(),adv=ADF.advanceOf(s,v,t.total),pct=Math.round(Number(s.codAdvance??20)),off=ADF.mode()==='offline';
   let html;
-  if(v==='cod'&&adv>0)html=`<b>Cash on Delivery needs a ${pct}% advance.</b><br>Send <b>${fmt(adv)}</b> now to any account below and upload the screenshot. Pay the remaining <b>${fmt(t.total-adv)}</b> to the rider on delivery.${accounts(s)}`;
+  if(v==='cod'&&adv>0)html=`<b>Cash on Delivery needs a ${pct}% advance (${fmt(adv)}).</b><br>You can place the order now. Our team will contact you to collect the ${pct}% advance before dispatch, and you pay the remaining <b>${fmt(t.total-adv)}</b> to the rider.<br><small>Already paid? Send it to any account below and upload the screenshot (optional).</small>${accounts(s)}`;
   else if(v==='cod')html='Pay the rider in cash when your order arrives.';
   else html=`Send <b>${fmt(t.total)}</b> to this account, then upload the payment screenshot below.${accounts(s,v)}`;
   if(off&&adv>0)html+='<br><small>After placing the order, share the payment screenshot on WhatsApp.</small>';
   $('#pinfo').innerHTML=html;
-  const need=adv>0&&!off;$('#proofBox').hidden=!need;
-  const a=$('#advRows');if(a)a.innerHTML=v==='cod'&&adv>0?`<div class="row2 adv"><span>Advance now (${pct}%)</span><span>${fmt(adv)}</span></div><div class="row2"><span>Pay on delivery</span><span>${fmt(t.total-adv)}</span></div>`:'';
+  const need=adv>0&&!off;$('#proofBox').hidden=!need;$('#proofReq').hidden=v==='cod';$('#proofOpt').hidden=v!=='cod';
+  const a=$('#advRows');if(a)a.innerHTML=v==='cod'&&adv>0?`<div class="row2 adv"><span>Advance (${pct}%)</span><span>${fmt(adv)}</span></div><div class="row2"><span>Pay on delivery</span><span>${fmt(t.total-adv)}</span></div>`:'';
 }
 async function pickProof(f){
   if(!f)return;const lab=$('.upbox'),txt=$('#proofTxt');txt.textContent='Adding screenshot…';
@@ -938,11 +938,11 @@ async function place(){
   const customer={name:g('cName'),phone:g('cPhone'),city:g('cCity'),addr:g('cAddr'),notes:g('cNotes')};
   store('adf_checkout',{cName:customer.name,cPhone:customer.phone,cCity:customer.city,cAddr:customer.addr});
   const pay=(document.querySelector('input[name=pay]:checked')||{}).value;
-  const needProof=!$('#proofBox').hidden;
+  const needProof=!$('#proofBox').hidden&&pay!=='cod';
   if(needProof&&!proofData){e.textContent='Please upload the payment screenshot.';$('.upbox').scrollIntoView({block:'center',behavior:'smooth'});return;}
   e.textContent='';btn.disabled=true;btn.textContent='Placing order…';
   try{
-    const o=await ADF.placeOrder({customer,pay,proof:needProof?proofData:'',items:lines().map(l=>({pid:l.p.id,w:l.v.w,qty:l.qty}))});
+    const o=await ADF.placeOrder({customer,pay,proof:!$('#proofBox').hidden?proofData:'',items:lines().map(l=>({pid:l.p.id,w:l.v.w,qty:l.qty}))});
     proofData='';
     last=o;mine.push({id:o.id,at:o.at,total:o.total,pay:o.pay,items:o.items});store('adf_my_orders',mine.slice(-30));
     cart={};store('adf_cart3',cart);view='done';renderD();

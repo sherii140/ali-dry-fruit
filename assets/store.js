@@ -171,7 +171,7 @@
     const fee = Number(s.deliveryFee) || 0, free = Number(s.freeOver) || 0;
     const ship = free && sub >= free ? 0 : fee;
     const total = sub + ship, advance = advanceOf(s, payload.pay, total);
-    if (applyStock && advance > 0 && !payload.proof) throw new Error('Please upload the payment screenshot.');
+    if (applyStock && payload.pay !== 'cod' && advance > 0 && !payload.proof) throw new Error('Please upload the payment screenshot.');
     const o = { at: new Date().toISOString(), customer: { name, phone, city, addr, notes }, items, sub, ship, total,
       pay: payload.pay, advance, status: 'pending', paid: false, note: '' };
     if (applyStock && payload.proof) { o.proof = true; o.proofData = payload.proof; }

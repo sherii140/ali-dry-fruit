@@ -280,7 +280,7 @@ if ($a === 'order') {
         $fee = (int)($settings['deliveryFee'] ?? 0); $free = (int)($settings['freeOver'] ?? 0);
         $ship = ($free && $sub >= $free) ? 0 : $fee;
         $total = $sub + $ship; $advance = advance_of($settings, $pay, $total);
-        if ($advance > 0 && !$proof) fail('Please upload the payment screenshot.');
+        if ($pay !== 'cod' && $advance > 0 && !$proof) fail('Please upload the payment screenshot.');
         $seq = (int)(kv_get('seq') ?? 1000) + 1;
         $order = ['id' => 'ADF-' . $seq, 'at' => gmdate('c'),
             'customer' => compact('name', 'phone', 'city', 'addr', 'notes'),

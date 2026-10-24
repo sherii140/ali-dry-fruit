@@ -331,7 +331,7 @@ module.exports = async function handler(req, res) {
         const fee = Number(s.deliveryFee) || 0, free = Number(s.freeOver) || 0;
         const ship = free && sub >= free ? 0 : fee;
         const total = sub + ship, advance = advanceOf(s, pay, total);
-        if (advance > 0 && !proof) throw new Fail('Please upload the payment screenshot.');
+        if (pay !== 'cod' && advance > 0 && !proof) throw new Fail('Please upload the payment screenshot.');
         const seq = (Number(d.seq) || 1000) + 1;
         const o = { id: 'ADF-' + seq, at: new Date().toISOString(), customer: { name, phone, city, addr, notes },
           items: lines, sub, ship, total, pay, advance, proof: !!proof, status: 'pending', paid: false, note: '' };
