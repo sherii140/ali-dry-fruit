@@ -644,7 +644,7 @@ function renderOrderTable(){
       <td data-l="Phone">${esc(o.customer.phone)}</td>
       <td data-l="Items">${o.items.reduce((t,i)=>t+i.qty,0)}</td>
       <td class="num" data-l="Total"><b>${fmt(o.total)}</b></td>
-      <td data-l="Payment"><span class="small">${PAYN[o.pay]||esc(o.pay)}</span> <span class="pill ${o.paid?'paid':'unpaid'}">${o.paid?'Paid':'Unpaid'}</span></td>
+      <td data-l="Payment"><span class="small">${PAYN[o.pay]||esc(o.pay)}</span> <span class="pill ${o.paid?'paid':'unpaid'}">${o.paid?'Paid':'Unpaid'}</span>${o.proof?' <span class="pill" title="Payment screenshot uploaded">Screenshot</span>':''}</td>
       <td data-l="Status"><span class="pill ${o.status}">${STN[o.status]}</span></td></tr>`).join('')}</tbody></table>`
     :`<div class="empty"><b>${DB.orders.length?'No orders match':'No orders yet'}</b>${DB.orders.length?'Try another tab or search.':'New orders from the store will appear here.'}</div>`;
 }
@@ -666,7 +666,9 @@ function openOrder(id){
     <div class="card"><h2 style="margin-bottom:8px">Items</h2>
       ${o.items.map(i=>`<div class="oi">${thumb(prodById(i.pid)||{images:[i.image]})}<div class="grow"><b>${esc(i.name)}</b><div class="small muted">${esc(i.w)} · ${fmt(i.price)} × ${i.qty}</div></div><b class="num">${fmt(i.price*i.qty)}</b></div>`).join('')}
       <div style="margin-top:10px"><div class="tot"><span>Subtotal</span><span>${fmt(o.sub)}</span></div><div class="tot"><span>Delivery</span><span>${o.ship?fmt(o.ship):'Free'}</span></div><div class="tot t"><span>Total</span><span>${fmt(o.total)}</span></div>
-      <div class="tot"><span>Payment method</span><span>${PAYN[o.pay]||esc(o.pay)}</span></div></div></div>
+      <div class="tot"><span>Payment method</span><span>${PAYN[o.pay]||esc(o.pay)}</span></div>
+      ${o.advance!==undefined&&o.pay==='cod'&&o.advance>0?`<div class="tot"><span>Advance (paid online)</span><span>${fmt(o.advance)}</span></div><div class="tot"><span>Collect on delivery</span><span>${fmt(o.total-o.advance)}</span></div>`:''}</div></div>
+    ${o.proof?`<div class="card"><div class="ch"><h2>Payment screenshot</h2><a class="lnk" href="${esc(ADF.proofSrc(o))}" target="_blank" rel="noopener">Open full size</a></div><a href="${esc(ADF.proofSrc(o))}" target="_blank" rel="noopener"><img src="${esc(ADF.proofSrc(o))}" alt="Payment screenshot for ${esc(o.id)}" style="display:block;max-width:100%;max-height:420px;border-radius:8px;border:1px solid var(--line);margin:0 auto"></a><p class="hint" style="margin-top:8px">Check the amount in your account, then tick “Marked as paid”.</p></div>`:o.pay&&!o.sample?`<div class="card"><p class="small muted">No payment screenshot with this order.</p></div>`:''}
     <div class="card"><div class="f"><label for="oNote">Internal note</label><textarea class="ta" id="oNote" rows="3" placeholder="Only you can see this. Example: courier tracking number">${esc(o.note||'')}</textarea></div></div>
    </div>
    <div class="pf"><button class="btn danger" data-act="delOrder" data-id="${esc(o.id)}" style="margin-right:auto">${IC.trash}Delete</button><button class="btn ghost" data-act="closePanel">Close</button><button class="btn" data-act="saveOrder" data-id="${esc(o.id)}">Save</button></div>`);
@@ -729,10 +731,14 @@ function productEditor(id){
           <div class="f"><label for="eDesc">Description</label><textarea class="ta" id="eDesc" rows="4" placeholder="What makes this product good, how to store it">${esc(ST.edit.desc)}</textarea><span class="hint">Shown when a customer opens the product.</span></div>
         </div>
         <div class="card"><div class="ch"><div><h2>Media</h2><div class="sub">First photo is the cover. Square photos look best (1000 × 1000).</div></div></div><div class="media" id="eMedia"></div></div>
-        <div class="card"><div class="ch"><div><h2>Weights &amp; prices</h2><div class="sub">Compare-at price shows crossed out with the % off badge. Leave stock empty for unlimited.</div></div></div>
+        <div class="card"><div class="ch"><div><h2>Weights &amp; prices</h2><div class="sub">Type the 1 kg rate: 250g, 500g and every other weight fill in automatically. Leave stock empty for unlimited.</div></div></div>
+          <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg,#f7f8f6)">
+            <div class="f" style="margin:0"><label for="eKg">1 kg rate (Rs.)</label><input class="in" id="eKg" type="number" min="0" inputmode="numeric" value="${esc(kgRate(ST.edit))}" placeholder="e.g. 4800" style="max-width:150px"></div>
+            <div class="f" style="margin:0"><label for="eOff">Discount badge (%)</label><input class="in" id="eOff" type="number" min="0" max="90" value="${esc(offOf(ST.edit))}" style="max-width:110px"></div>
+            <span class="hint" style="flex-basis:100%;margin:0">Prices = weight × 1 kg rate, rounded to Rs. 10. The crossed-out price shows this % off (0 = no crossed price). You can still edit any box below by hand.</span>
+          </div>
           <div style="overflow-x:auto"><table class="vt"><thead><tr><th>Weight</th><th>Price (Rs.)</th><th>Compare-at (Rs.)</th><th>Stock</th><th></th></tr></thead><tbody id="eVars"></tbody></table></div>
-          <div class="row" style="margin-top:10px"><button class="btn ghost sm" data-act="addVar">${IC.plus}Add weight</button>
-            <span class="small muted" style="margin-left:auto">Set compare-at for</span><input class="in" id="eOff" type="number" min="1" max="90" value="20" style="width:70px;padding:6px 8px" aria-label="Percent off"><span class="small muted">% off</span><button class="btn ghost sm" data-act="applyOff">Apply</button></div>
+          <div class="row" style="margin-top:10px"><button class="btn ghost sm" data-act="addVar">${IC.plus}Add weight</button></div>
         </div>
       </div>
       <div class="col">
@@ -748,6 +754,17 @@ function productEditor(id){
     </div>
     <div class="savebar"><a class="btn ghost" href="#/products">Cancel</a><button class="btn" data-act="saveProduct">${p?'Save product':'Add product'}</button></div>`;
   renderMedia();renderVars();
+  const auto=()=>{syncEdit();fillFromKg();renderVars();};
+  $('#eKg').addEventListener('input',auto);$('#eOff').addEventListener('input',auto);
+  $('#eVars').addEventListener('change',ev=>{if(ev.target.dataset.f==='w'&&Number($('#eKg').value)>0)auto();});
+}
+/* weight text → kg ("250g" → 0.25, "1.5kg" → 1.5); null if it can't be read */
+function kgOf(w){const m=String(w||'').toLowerCase().replace(/\s/g,'').match(/^(\d+(?:\.\d+)?)(kg|g|gm|gram|grams)?$/);if(!m)return null;const n=parseFloat(m[1]);return m[2]&&m[2]!=='kg'?n/1000:(m[2]==='kg'?n:(n>=50?n/1000:n));}
+function kgRate(e){const v=(e.variants||[]).find(x=>kgOf(x.w)===1&&Number(x.price)>0)||(e.variants||[]).find(x=>kgOf(x.w)&&Number(x.price)>0);if(!v)return '';return Math.round(Number(v.price)/kgOf(v.w));}
+function offOf(e){const v=(e.variants||[]).find(x=>Number(x.price)>0&&Number(x.compare)>Number(x.price));if(!v)return e.id?0:20;return Math.round((1-Number(v.price)/Number(v.compare))*100);}
+function fillFromKg(){
+  const kg=Number($('#eKg').value),off=Math.max(0,Math.min(90,Number($('#eOff').value)||0));if(!(kg>0))return;
+  ST.edit.variants.forEach(v=>{const k=kgOf(v.w);if(!k)return;const pr=Math.round(kg*k/10)*10;v.price=pr;v.compare=off>0?Math.round(pr/(1-off/100)/10)*10:'';});
 }
 function syncEdit(){
   const e=ST.edit;if(!e||!$('#eName'))return;
@@ -1090,6 +1107,7 @@ async function pgSettings(){
           </div></div>
         <div class="card stack"><div><h2>Payment methods</h2><div class="sub">Leave a field empty to hide that option at checkout.</div></div>
           <label class="sw"><input type="checkbox" id="sCod" ${p.cod?'checked':''}>Cash on Delivery</label>
+          <div class="f"><label for="sAdv">COD advance (%)</label><input class="in" id="sAdv" type="number" min="0" max="100" value="${esc(s.codAdvance??20)}" style="max-width:120px"><span class="hint">Customer pays this much in advance to Easypaisa / JazzCash / bank and uploads the screenshot. 0 = no advance. Other methods are paid in full with a screenshot.</span></div>
           <div class="fg">
             <div class="f"><label for="sEp">Easypaisa account</label><input class="in" id="sEp" value="${esc(p.easypaisa)}" placeholder="0300-1234567 (Account title)"></div>
             <div class="f"><label for="sJc">JazzCash account</label><input class="in" id="sJc" value="${esc(p.jazzcash)}" placeholder="0300-1234567 (Account title)"></div>
@@ -1124,7 +1142,7 @@ async function saveSettings(btn){
   await guard(async()=>{
     await reload();const s=DB.settings;
     Object.assign(s,{storeName:$('#sName').value.trim()||'Ali Dry Fruit',whatsapp:wa,phone:$('#sPhone').value.trim(),email:$('#sEmail').value.trim(),hours:$('#sHours').value.trim(),address:$('#sAddr').value.trim(),facebook:$('#sFb').value.trim(),instagram:$('#sIg').value.trim(),
-      deliveryFee:Number($('#sFee').value)||0,freeOver:Number($('#sFree').value)||0,lowStock:Number($('#sLow').value)||0,
+      codAdvance:Math.max(0,Math.min(100,Number($('#sAdv').value)||0)),deliveryFee:Number($('#sFee').value)||0,freeOver:Number($('#sFree').value)||0,lowStock:Number($('#sLow').value)||0,
       pay:{cod:$('#sCod').checked,easypaisa:$('#sEp').value.trim(),jazzcash:$('#sJc').value.trim(),bank:$('#sBank').value.trim()}});
     if(!ADF.payMethods(s).length)throw new Error('Keep at least one payment method on.');
     await ADF.save('settings',s);

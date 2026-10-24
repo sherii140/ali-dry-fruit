@@ -18,6 +18,7 @@ const path = require('path');
 
 const ADMIN_PASS_DEFAULT = '1234';
 const MAX_IMAGE = 6 * 1024 * 1024;
+const MAX_PROOF = 3 * 1024 * 1024;
 const P = 'adf:';
 const SECTIONS = ['settings', 'banners', 'collections', 'products'];
 const STATUSES = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
@@ -135,9 +136,22 @@ async function patchV9() {
     await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '9']]);
   });
 }
+/* v10: drop the demo email, 20% COD advance */
+async function patchV10() {
+  await withLock(async () => {
+    const st = parse(await cmd('GET', P + 'settings')) || {};
+    if (st.email === 'orders@alidryfruit.pk') st.email = '';
+    if (st.codAdvance === undefined) st.codAdvance = 20;
+    await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '10']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 9) return;
+  if (v >= 10) return;
+  if (v < 9) await patchData9(v);
+  await patchV10();
+}
+async function patchData9(v) {
   if (v < 5) await patchV5();
   if (v < 6) await patchV6();
   if (v < 8) await patchProducts(v);
@@ -162,7 +176,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '9'],
+      ['SET', P + 'v', '10'],
     ]);
   });
   seeded = true;
@@ -206,6 +220,11 @@ async function checkPassword(pw) {
 
 /* ---------------- helpers ---------------- */
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
+function advanceOf(s, pay, total) {
+  if (pay !== 'cod') return total;
+  const pct = Math.max(0, Math.min(100, Number((s || {}).codAdvance ?? 20) || 0));
+  return Math.round(total * pct / 100);
+}
 function payMethods(s) {
   const p = (s && s.pay) || {}, o = [];
   if (p.cod) o.push('cod');
@@ -283,6 +302,14 @@ module.exports = async function handler(req, res) {
       if (addr.length < 8) throw new Fail('Please enter your full address so the rider can find you.');
       const items = Array.isArray(b.items) ? b.items.slice(0, 50) : [];
       if (!items.length) throw new Fail('Your cart is empty.');
+      let proof = null;
+      if (b.proof) {
+        const buf = Buffer.from(String(b.proof).replace(/^data:[^,]*,/, ''), 'base64');
+        if (buf.length > MAX_PROOF) throw new Fail('The screenshot is too large. Please try another one.');
+        const type = imageType(buf);
+        if (!type) throw new Fail('The payment screenshot must be a JPG, PNG or WEBP image.');
+        proof = { type, b64: buf.toString('base64') };
+      }
       const order = await withLock(async () => {
         const d = await getKV(['settings', 'products', 'seq']);
         const s = d.settings || {}, products = d.products || [];
@@ -303,13 +330,16 @@ module.exports = async function handler(req, res) {
         }
         const fee = Number(s.deliveryFee) || 0, free = Number(s.freeOver) || 0;
         const ship = free && sub >= free ? 0 : fee;
+        const total = sub + ship, advance = advanceOf(s, pay, total);
+        if (advance > 0 && !proof) throw new Fail('Please upload the payment screenshot.');
         const seq = (Number(d.seq) || 1000) + 1;
         const o = { id: 'ADF-' + seq, at: new Date().toISOString(), customer: { name, phone, city, addr, notes },
-          items: lines, sub, ship, total: sub + ship, pay, status: 'pending', paid: false, note: '' };
+          items: lines, sub, ship, total, pay, advance, proof: !!proof, status: 'pending', paid: false, note: '' };
         await multi([
           ['SET', P + 'products', JSON.stringify(products)],
           ['SET', P + 'seq', String(seq)],
           ['HSET', P + 'orders', o.id, JSON.stringify(o)],
+          ...(proof ? [['SET', P + 'proof:' + o.id, JSON.stringify(proof)]] : []),
         ]);
         return o;
       });
@@ -328,6 +358,17 @@ module.exports = async function handler(req, res) {
 
     /* ---------- admin only ---------- */
     if (!(await isAdmin(req))) throw new Fail('Please log in again.', 401);
+
+    if (a === 'proof') {   // payment screenshot of an order (admin only)
+      const id = (url.searchParams.get('id') || '').replace(/[^A-Za-z0-9-]/g, '');
+      const v = id && parse(await cmd('GET', P + 'proof:' + id));
+      if (!v) { res.statusCode = 404; return res.end('Not found'); }
+      res.statusCode = 200;
+      res.setHeader('Content-Type', v.type);
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      return res.end(Buffer.from(v.b64, 'base64'));
+    }
     if (!isPost && a !== 'all') throw new Fail('POST only', 405);
 
     if (a === 'all') {
@@ -368,7 +409,7 @@ module.exports = async function handler(req, res) {
 
     if (a === 'orders_delete') {
       const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
-      if (ids.length) await cmd('HDEL', P + 'orders', ...ids);
+      if (ids.length) { await cmd('HDEL', P + 'orders', ...ids); await cmd('DEL', ...ids.map(i => P + 'proof:' + i)); }
       return send(res, 200, { ok: true });
     }
 

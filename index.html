@@ -281,7 +281,13 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
 #fContact li a{display:flex;gap:9px;align-items:flex-start;color:inherit}
 .fgrid li svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;fill:none;stroke:var(--green);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .fgrid a:hover,.fgrid li button:hover{color:var(--green)}
-.fgrid li button{border:0;background:none;color:inherit;text-align:left}
+.fgrid li button{border:0;background:none;color:inherit;text-align:center}
+/* footer: everything centred */
+.fgrid>div{display:flex;flex-direction:column;align-items:center;text-align:center}
+.fgrid p{margin-inline:auto}
+.fgrid ul{align-items:center}
+.fgrid li,#fContact li a{justify-content:center;text-align:center}
+.social,.paylist{justify-content:center}
 .social{display:flex;gap:8px;margin-top:14px}
 .social a{width:34px;height:34px;border-radius:50%;background:var(--green);display:grid;place-items:center;color:var(--white);transition:background .15s}
 .social a:hover{background:var(--gold)}
@@ -342,6 +348,15 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
 .pay input{accent-color:var(--green)}
 .pinfo{border:1px dashed var(--gold-l);background:#FFFBF2;border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.6;margin:4px 0 10px}
 .err{color:var(--danger);font-size:12.5px;min-height:1.2em}
+.pinfo .acc{display:flex;flex-direction:column;background:var(--white);border:1px solid var(--line);border-radius:6px;padding:7px 10px;margin-top:6px}
+.pinfo .acc b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--green-d)}
+.pinfo .acc span{white-space:pre-line;color:var(--ink)}
+.upbox{display:flex;align-items:center;gap:12px;border:1.5px dashed var(--green);border-radius:8px;padding:12px;cursor:pointer;background:var(--green-soft);font-size:13px;color:var(--green-d);font-weight:500;margin-bottom:6px}
+.upbox svg{width:22px;height:22px;flex-shrink:0;fill:none;stroke:var(--green);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.upbox img{width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--line);margin-left:auto}
+.upbox.has{border-style:solid;background:var(--white)}
+.req{color:var(--danger)}
+.row2.adv span:last-child{color:var(--green-d);font-weight:600}
 .done{text-align:center;padding:26px 0}
 .done .tick{width:56px;height:56px;border-radius:50%;background:var(--green-soft);display:grid;place-items:center;margin:0 auto 12px}
 .done .tick svg{width:26px;height:26px;fill:none;stroke:var(--green);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
@@ -429,6 +444,7 @@ footer{background:var(--paper);border-top:1px solid var(--line)}
   .trust div.t{padding:14px 6px;gap:9px}
   .trust i{width:36px;height:36px}
   .fgrid{grid-template-columns:1fr;gap:24px;padding-block:30px 24px}
+  #fLinks{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:8px 16px}
   .toast{bottom:calc(80px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 32px)}
   .qv{grid-template-columns:1fr;top:auto;bottom:0;left:0;width:100%;max-height:92%;transform:translateY(100%);border-radius:16px 16px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
   .qv.open{transform:none}
@@ -859,8 +875,9 @@ function renderD(){
   if(view==='done'){
     const o=last,s=S();$('#dT').textContent=o.offline?'Almost Done':'Order Placed';F.hidden=true;
     const payTxt=String((s.pay||{})[o.pay]||'').replace(/\n/g,'<br>');
-    const how=o.offline?'Tap the button below to send your order on WhatsApp. We will confirm it there.':o.pay==='cod'?'We will call you to confirm before dispatch.':`Please send <b>${fmt(o.total)}</b> to:<div class="pinfo" style="text-align:left;margin-top:10px">${esc(payTxt).replace(/&lt;br&gt;/g,'<br>')}</div>Then share the payment screenshot with your order number on WhatsApp.`;
-    const msg=`Order ${o.id} · ${s.storeName||'Ali Dry Fruit'}\n`+o.items.map(i=>`• ${i.name} (${i.w}) x${i.qty} = ${fmt(i.price*i.qty)}`).join('\n')+`\n\nSubtotal: ${fmt(o.sub)}\nDelivery: ${o.ship?fmt(o.ship):'Free'}\nTotal: ${fmt(o.total)} (${PAYN[o.pay]})\n\nName: ${o.customer.name}\nPhone: ${o.customer.phone}\nCity: ${o.customer.city}\nAddress: ${o.customer.addr}`+(o.customer.notes?`\nNotes: ${o.customer.notes}`:'');
+    const adv=o.advance??ADF.advanceOf(s,o.pay,o.total);
+    const how=o.offline?'Tap the button below to send your order on WhatsApp with your payment screenshot. We will confirm it there.':o.pay==='cod'&&adv>0?`We received your advance screenshot for <b>${fmt(adv)}</b>. We will check the payment and call you before dispatch. Pay the remaining <b>${fmt(o.total-adv)}</b> to the rider.`:o.pay==='cod'?'We will call you to confirm before dispatch.':`We received your payment screenshot for <b>${fmt(o.total)}</b>. We will check it and confirm your order on WhatsApp.`;
+    const msg=`Order ${o.id} · ${s.storeName||'Ali Dry Fruit'}\n`+o.items.map(i=>`• ${i.name} (${i.w}) x${i.qty} = ${fmt(i.price*i.qty)}`).join('\n')+`\n\nSubtotal: ${fmt(o.sub)}\nDelivery: ${o.ship?fmt(o.ship):'Free'}\nTotal: ${fmt(o.total)} (${PAYN[o.pay]})`+(adv>0?`\nPaid now: ${fmt(adv)}${o.proof?' (screenshot uploaded)':''}`+(o.total-adv>0?`\nPay on delivery: ${fmt(o.total-adv)}`:''):'')+`\n\nName: ${o.customer.name}\nPhone: ${o.customer.phone}\nCity: ${o.customer.city}\nAddress: ${o.customer.addr}`+(o.customer.notes?`\nNotes: ${o.customer.notes}`:'');
     B.innerHTML=`<div class="done"><div class="tick">${ICON.check}</div><h4>Thank you, ${esc(o.customer.name.split(' ')[0])}!</h4><p>Order <b>${esc(o.id)}</b> · ${fmt(o.total)}</p><p>${how}</p><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink(msg))}">${o.offline?'Send Order on WhatsApp':'Confirm on WhatsApp'}</a><button class="btn ghost" data-close>Continue shopping</button></div>`;
     return;
   }
@@ -884,24 +901,49 @@ function renderD(){
     <label class="sr" for="cNotes">Notes</label><textarea class="fld" id="cNotes" rows="1" placeholder="Notes (optional)"></textarea>
     <div class="lbl">Payment method</div>
     ${pays.map((k,i)=>`<label class="pay"><input type="radio" name="pay" value="${k}" ${i?'':'checked'}>${PAYN[k]}</label>`).join('')}
-    <div class="pinfo" id="pinfo"></div><div class="err" id="err" role="alert"></div>`;
+    <div class="pinfo" id="pinfo"></div>
+    <div id="proofBox"><div class="lbl">Payment screenshot <span class="req">*</span></div>
+      <label class="upbox${proofData?' has':''}" for="cProof"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><span id="proofTxt">${proofData?'Screenshot added · tap to change':'Upload payment screenshot'}</span>${proofData?`<img src="${proofData}" alt="Payment screenshot">`:''}</label>
+      <input type="file" id="cProof" accept="image/*" hidden></div>
+    <div class="err" id="err" role="alert"></div>`;
   Object.entries(keep).forEach(([id,v])=>{const el=$('#'+id);if(el&&v)el.value=v;});
   payInfo();
-  F.innerHTML=sum+`<button class="btn full" id="placeBtn">Place Order · ${fmt(t.total)}</button><button class="btn ghost full" id="backBtn">Back to cart</button>`;
+  F.innerHTML=sum+`<div id="advRows"></div><button class="btn full" id="placeBtn">Place Order · ${fmt(t.total)}</button><button class="btn ghost full" id="backBtn">Back to cart</button>`;
+  payInfo();
+}
+let proofData='';
+function accounts(s,only){
+  const p=s.pay||{};return ['easypaisa','jazzcash','bank'].filter(k=>(!only||k===only)&&p[k]&&String(p[k]).trim()).map(k=>`<div class="acc"><b>${PAYN[k]}</b><span>${esc(String(p[k]).trim())}</span></div>`).join('');
 }
 function payInfo(){
-  const r=document.querySelector('input[name=pay]:checked');if(!r)return;
-  const v=r.value,s=S();
-  $('#pinfo').innerHTML=v==='cod'?'Pay the rider in cash when your order arrives.':`Send the total to:<br><b>${esc(String((s.pay||{})[v]||'')).replace(/\n/g,'<br>')}</b><br><small>Share the payment screenshot on WhatsApp after placing the order.</small>`;
+  const r=document.querySelector('input[name=pay]:checked');if(!r||!$('#pinfo'))return;
+  const v=r.value,s=S(),t=totals(),adv=ADF.advanceOf(s,v,t.total),pct=Math.round(Number(s.codAdvance??20)),off=ADF.mode()==='offline';
+  let html;
+  if(v==='cod'&&adv>0)html=`<b>Cash on Delivery needs a ${pct}% advance.</b><br>Send <b>${fmt(adv)}</b> now to any account below and upload the screenshot. Pay the remaining <b>${fmt(t.total-adv)}</b> to the rider on delivery.${accounts(s)}`;
+  else if(v==='cod')html='Pay the rider in cash when your order arrives.';
+  else html=`Send <b>${fmt(t.total)}</b> to this account, then upload the payment screenshot below.${accounts(s,v)}`;
+  if(off&&adv>0)html+='<br><small>After placing the order, share the payment screenshot on WhatsApp.</small>';
+  $('#pinfo').innerHTML=html;
+  const need=adv>0&&!off;$('#proofBox').hidden=!need;
+  const a=$('#advRows');if(a)a.innerHTML=v==='cod'&&adv>0?`<div class="row2 adv"><span>Advance now (${pct}%)</span><span>${fmt(adv)}</span></div><div class="row2"><span>Pay on delivery</span><span>${fmt(t.total-adv)}</span></div>`:'';
+}
+async function pickProof(f){
+  if(!f)return;const lab=$('.upbox'),txt=$('#proofTxt');txt.textContent='Adding screenshot…';
+  try{proofData=await ADF.proofImage(f);lab.classList.add('has');txt.textContent='Screenshot added · tap to change';
+    let im=lab.querySelector('img');if(!im){im=document.createElement('img');im.alt='Payment screenshot';lab.appendChild(im);}im.src=proofData;$('#err').textContent='';}
+  catch(x){proofData='';lab.classList.remove('has');txt.textContent='Upload payment screenshot';$('#err').textContent=x.message;}
 }
 async function place(){
   const g=id=>$('#'+id).value.trim(),e=$('#err'),btn=$('#placeBtn');
   const customer={name:g('cName'),phone:g('cPhone'),city:g('cCity'),addr:g('cAddr'),notes:g('cNotes')};
   store('adf_checkout',{cName:customer.name,cPhone:customer.phone,cCity:customer.city,cAddr:customer.addr});
   const pay=(document.querySelector('input[name=pay]:checked')||{}).value;
+  const needProof=!$('#proofBox').hidden;
+  if(needProof&&!proofData){e.textContent='Please upload the payment screenshot.';$('.upbox').scrollIntoView({block:'center',behavior:'smooth'});return;}
   e.textContent='';btn.disabled=true;btn.textContent='Placing order…';
   try{
-    const o=await ADF.placeOrder({customer,pay,items:lines().map(l=>({pid:l.p.id,w:l.v.w,qty:l.qty}))});
+    const o=await ADF.placeOrder({customer,pay,proof:needProof?proofData:'',items:lines().map(l=>({pid:l.p.id,w:l.v.w,qty:l.qty}))});
+    proofData='';
     last=o;mine.push({id:o.id,at:o.at,total:o.total,pay:o.pay,items:o.items});store('adf_my_orders',mine.slice(-30));
     cart={};store('adf_cart3',cart);view='done';renderD();
     if(ADF.mode()!=='offline'){try{D=await ADF.store();renderGrid();}catch(x){}}
@@ -977,7 +1019,7 @@ document.addEventListener('click',e=>{
 });
 $('#ov').addEventListener('click',()=>closeAll());
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll();});
-document.addEventListener('change',e=>{if(e.target.name==='pay')payInfo();});
+document.addEventListener('change',e=>{if(e.target.name==='pay')payInfo();if(e.target.id==='cProof')pickProof(e.target.files[0]);});
 $('#searchForm').addEventListener('submit',e=>{e.preventDefault();st.q=$('#q').value.trim();st.more=0;renderGrid();$('#sale').scrollIntoView({behavior:reduce?'auto':'smooth'});});
 $('#q').addEventListener('input',e=>{if(!e.target.value.trim()&&st.q){st.q='';renderGrid();}});
 $('#track').addEventListener('scroll',()=>{const w=$('#track').clientWidth;if(!w)return;const i=Math.round($('#track').scrollLeft/w);if(i!==slider.idx){slider.idx=i;markDots();}},{passive:true});

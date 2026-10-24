@@ -147,6 +147,8 @@ function patch_contact() {
     $real = ['phone' => '+92 300 4198090', 'whatsapp' => '923004198090', 'address' => 'Roundabout, Adda Plot, Lahore'];
     $ch = false;
     foreach ($demo as $k => $v) if (empty($st[$k]) || $st[$k] === $v) { $st[$k] = $real[$k]; $ch = true; }
+    if (($st['email'] ?? '') === 'orders@alidryfruit.pk') { $st['email'] = ''; $ch = true; }
+    if (!isset($st['codAdvance'])) { $st['codAdvance'] = 20; $ch = true; }
     if ($ch) kv_set('settings', $st);
 }
 
@@ -191,6 +193,13 @@ function pay_methods($s) {
     foreach (['easypaisa', 'jazzcash', 'bank'] as $k) if (!empty($p[$k]) && trim($p[$k]) !== '') $o[] = $k;
     return $o;
 }
+function advance_of($s, $pay, $total) {
+    if ($pay !== 'cod') return $total;
+    $pct = max(0, min(100, (float)($s['codAdvance'] ?? 20)));
+    return (int)round($total * $pct / 100);
+}
+const PROOF_DIR = DATA_DIR . '/proofs';   // inside data/, which is closed to the public
+function proof_file($id) { return PROOF_DIR . '/' . preg_replace('/[^A-Za-z0-9-]/', '', $id) . '.img'; }
 function str($v, $max) { return mb_substr(trim((string)$v), 0, $max); }
 function public_settings($s) { unset($s['admin']); return $s; }
 
@@ -232,6 +241,13 @@ if ($a === 'order') {
     if (mb_strlen($addr) < 8) fail('Please enter your full address so the rider can find you.');
     $items = is_array($b['items'] ?? null) ? array_slice($b['items'], 0, 50) : [];
     if (!$items) fail('Your cart is empty.');
+    $proof = null;
+    if (!empty($b['proof'])) {
+        $proof = base64_decode(preg_replace('/^data:[^,]*,/', '', (string)$b['proof']), true);
+        if (!$proof || strlen($proof) > 3 * 1024 * 1024) fail('The screenshot is too large. Please try another one.');
+        $info = @getimagesizefromstring($proof);
+        if (!in_array($info['mime'] ?? '', ['image/jpeg', 'image/png', 'image/webp'], true)) fail('The payment screenshot must be a JPG, PNG or WEBP image.');
+    }
 
     lock();
     try {
@@ -263,11 +279,17 @@ if ($a === 'order') {
         }
         $fee = (int)($settings['deliveryFee'] ?? 0); $free = (int)($settings['freeOver'] ?? 0);
         $ship = ($free && $sub >= $free) ? 0 : $fee;
+        $total = $sub + $ship; $advance = advance_of($settings, $pay, $total);
+        if ($advance > 0 && !$proof) fail('Please upload the payment screenshot.');
         $seq = (int)(kv_get('seq') ?? 1000) + 1;
         $order = ['id' => 'ADF-' . $seq, 'at' => gmdate('c'),
             'customer' => compact('name', 'phone', 'city', 'addr', 'notes'),
-            'items' => $lines, 'sub' => $sub, 'ship' => $ship, 'total' => $sub + $ship,
-            'pay' => $pay, 'status' => 'pending', 'paid' => false, 'note' => ''];
+            'items' => $lines, 'sub' => $sub, 'ship' => $ship, 'total' => $total,
+            'pay' => $pay, 'advance' => $advance, 'proof' => (bool)$proof, 'status' => 'pending', 'paid' => false, 'note' => ''];
+        if ($proof) {
+            if (!is_dir(PROOF_DIR)) @mkdir(PROOF_DIR, 0755, true);
+            if (@file_put_contents(proof_file($order['id']), $proof) === false) fail('Could not save the screenshot. Please try again.');
+        }
         kv_set('products', $products);
         kv_set('seq', $seq);
         order_put($order);
@@ -290,6 +312,14 @@ if ($a === 'me') { out(['ok' => true, 'authed' => is_admin()]); }
 
 /* ---------- everything below needs the admin session ---------- */
 need_admin();
+if ($a === 'proof') {   // payment screenshot of an order
+    $f = proof_file((string)($_GET['id'] ?? ''));
+    if (!is_file($f)) fail('Not found', 404);
+    $info = @getimagesize($f);
+    header('Content-Type: ' . ($info['mime'] ?? 'image/jpeg'));
+    header('Cache-Control: private, max-age=86400');
+    readfile($f); exit;
+}
 if (!$isPost && $a !== 'all') fail('POST only', 405);
 
 if ($a === 'all') {
@@ -331,7 +361,7 @@ if ($a === 'orders_put') {
 if ($a === 'orders_delete') {
     $ids = body()['ids'] ?? [];
     if (!is_array($ids)) fail('Nothing to delete.');
-    lock(); try { orders_del(array_map('strval', $ids)); } finally { unlock(); }
+    lock(); try { $ids = array_map('strval', $ids); orders_del($ids); foreach ($ids as $id) @unlink(proof_file($id)); } finally { unlock(); }
     out(['ok' => true]);
 }
 

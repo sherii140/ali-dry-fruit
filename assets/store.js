@@ -85,6 +85,7 @@
       const demo = { phone: '+92 300 0000000', whatsapp: '923000000000', address: 'Lahore, Pakistan' }, st = d.settings = d.settings || {};
       Object.keys(demo).forEach(k => { if (!st[k] || st[k] === demo[k]) st[k] = S.settings[k]; });
     }
+    if ((d.v || 1) < 10) { const st = d.settings = d.settings || {}; if (st.email === 'orders@alidryfruit.pk') st.email = ''; if (st.codAdvance === undefined) st.codAdvance = 20; }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;
@@ -134,6 +135,12 @@
     ['easypaisa', 'jazzcash', 'bank'].forEach(k => { if (p[k] && String(p[k]).trim()) out.push(k); });
     return out;
   }
+  /* COD needs an advance (settings.codAdvance %, default 20); other methods are paid in full before dispatch */
+  function advanceOf(s, pay, total) {
+    if (pay !== 'cod') return total;
+    const pct = Math.max(0, Math.min(100, Number((s || {}).codAdvance ?? 20) || 0));
+    return Math.round(total * pct / 100);
+  }
   function computeOrder(db, payload, applyStock) {
     const s = db.settings || {}, c = payload.customer || {};
     const name = String(c.name || '').trim().slice(0, 80);
@@ -163,8 +170,12 @@
     const sub = items.reduce((t, i) => t + i.price * i.qty, 0);
     const fee = Number(s.deliveryFee) || 0, free = Number(s.freeOver) || 0;
     const ship = free && sub >= free ? 0 : fee;
-    return { at: new Date().toISOString(), customer: { name, phone, city, addr, notes }, items, sub, ship, total: sub + ship,
-      pay: payload.pay, status: 'pending', paid: false, note: '' };
+    const total = sub + ship, advance = advanceOf(s, payload.pay, total);
+    if (applyStock && advance > 0 && !payload.proof) throw new Error('Please upload the payment screenshot.');
+    const o = { at: new Date().toISOString(), customer: { name, phone, city, addr, notes }, items, sub, ship, total,
+      pay: payload.pay, advance, status: 'pending', paid: false, note: '' };
+    if (applyStock && payload.proof) { o.proof = true; o.proofData = payload.proof; }
+    return o;
   }
 
   /* ---------- images ---------- */
@@ -191,6 +202,14 @@
     note: () => note,
     seed,
     payMethods,
+    advanceOf,
+    /* payment screenshot → small JPEG data URL (max 1400px) */
+    async proofImage(file) {
+      if (!file) throw new Error('Please upload the payment screenshot.');
+      const { canvas } = await compress(file, 1400, 0.8);
+      return canvas.toDataURL('image/jpeg', 0.8);
+    },
+    proofSrc(o) { if (!o || !o.proof) return ''; if (o.proofData) return o.proofData; return ROOT + 'api.php?a=proof&id=' + encodeURIComponent(o.id); },
     src(p) { if (!p) return ''; return /^(data:|https?:|blob:|\/)/.test(p) ? p : ROOT + p; },
 
     /* storefront */
