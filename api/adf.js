@@ -145,11 +145,19 @@ async function patchV10() {
     await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '10']]);
   });
 }
+async function patchV11() {   // COD advance 20% → 30%
+  await withLock(async () => {
+    const st = parse(await cmd('GET', P + 'settings')) || {};
+    if (st.codAdvance === undefined || Number(st.codAdvance) === 20) st.codAdvance = 30;
+    await multi([['SET', P + 'settings', JSON.stringify(st)], ['SET', P + 'v', '11']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 10) return;
+  if (v >= 11) return;
   if (v < 9) await patchData9(v);
-  await patchV10();
+  if (v < 10) await patchV10();
+  await patchV11();
 }
 async function patchData9(v) {
   if (v < 5) await patchV5();
@@ -176,7 +184,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '10'],
+      ['SET', P + 'v', '11'],
     ]);
   });
   seeded = true;
@@ -222,7 +230,7 @@ async function checkPassword(pw) {
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 function advanceOf(s, pay, total) {
   if (pay !== 'cod') return total;
-  const pct = Math.max(0, Math.min(100, Number((s || {}).codAdvance ?? 20) || 0));
+  const pct = Math.max(0, Math.min(100, Number((s || {}).codAdvance ?? 30) || 0));
   return Math.round(total * pct / 100);
 }
 function payMethods(s) {

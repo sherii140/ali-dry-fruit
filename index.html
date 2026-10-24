@@ -917,7 +917,7 @@ function accounts(s,only){
 }
 function payInfo(){
   const r=document.querySelector('input[name=pay]:checked');if(!r||!$('#pinfo'))return;
-  const v=r.value,s=S(),t=totals(),adv=ADF.advanceOf(s,v,t.total),pct=Math.round(Number(s.codAdvance??20)),off=ADF.mode()==='offline';
+  const v=r.value,s=S(),t=totals(),adv=ADF.advanceOf(s,v,t.total),pct=Math.round(Number(s.codAdvance??30)),off=ADF.mode()==='offline';
   let html;
   if(v==='cod'&&adv>0)html=`<b>Cash on Delivery needs a ${pct}% advance (${fmt(adv)}).</b><br>You can place the order now. Our team will contact you to collect the ${pct}% advance before dispatch, and you pay the remaining <b>${fmt(t.total-adv)}</b> to the rider.<br><small>Already paid? Send it to any account below and upload the screenshot (optional).</small>${accounts(s)}`;
   else if(v==='cod')html='Pay the rider in cash when your order arrives.';

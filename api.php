@@ -148,7 +148,8 @@ function patch_contact() {
     $ch = false;
     foreach ($demo as $k => $v) if (empty($st[$k]) || $st[$k] === $v) { $st[$k] = $real[$k]; $ch = true; }
     if (($st['email'] ?? '') === 'orders@alidryfruit.pk') { $st['email'] = ''; $ch = true; }
-    if (!isset($st['codAdvance'])) { $st['codAdvance'] = 20; $ch = true; }
+    if (!isset($st['codAdvance']) || (empty($st['adv30']) && (float)$st['codAdvance'] === 20.0)) { $st['codAdvance'] = 30; $st['adv30'] = 1; $ch = true; }
+    elseif (empty($st['adv30'])) { $st['adv30'] = 1; $ch = true; }
     if ($ch) kv_set('settings', $st);
 }
 
@@ -195,7 +196,7 @@ function pay_methods($s) {
 }
 function advance_of($s, $pay, $total) {
     if ($pay !== 'cod') return $total;
-    $pct = max(0, min(100, (float)($s['codAdvance'] ?? 20)));
+    $pct = max(0, min(100, (float)($s['codAdvance'] ?? 30)));
     return (int)round($total * $pct / 100);
 }
 const PROOF_DIR = DATA_DIR . '/proofs';   // inside data/, which is closed to the public

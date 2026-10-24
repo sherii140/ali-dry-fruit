@@ -1107,7 +1107,7 @@ async function pgSettings(){
           </div></div>
         <div class="card stack"><div><h2>Payment methods</h2><div class="sub">Leave a field empty to hide that option at checkout.</div></div>
           <label class="sw"><input type="checkbox" id="sCod" ${p.cod?'checked':''}>Cash on Delivery</label>
-          <div class="f"><label for="sAdv">COD advance (%)</label><input class="in" id="sAdv" type="number" min="0" max="100" value="${esc(s.codAdvance??20)}" style="max-width:120px"><span class="hint">Customer pays this much in advance to Easypaisa / JazzCash / bank and uploads the screenshot. 0 = no advance. Other methods are paid in full with a screenshot.</span></div>
+          <div class="f"><label for="sAdv">COD advance (%)</label><input class="in" id="sAdv" type="number" min="0" max="100" value="${esc(s.codAdvance??30)}" style="max-width:120px"><span class="hint">Customer pays this much in advance to Easypaisa / JazzCash / bank and uploads the screenshot. 0 = no advance. Other methods are paid in full with a screenshot.</span></div>
           <div class="fg">
             <div class="f"><label for="sEp">Easypaisa account</label><input class="in" id="sEp" value="${esc(p.easypaisa)}" placeholder="0300-1234567 (Account title)"></div>
             <div class="f"><label for="sJc">JazzCash account</label><input class="in" id="sJc" value="${esc(p.jazzcash)}" placeholder="0300-1234567 (Account title)"></div>

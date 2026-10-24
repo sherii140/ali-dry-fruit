@@ -86,6 +86,7 @@
       Object.keys(demo).forEach(k => { if (!st[k] || st[k] === demo[k]) st[k] = S.settings[k]; });
     }
     if ((d.v || 1) < 10) { const st = d.settings = d.settings || {}; if (st.email === 'orders@alidryfruit.pk') st.email = ''; if (st.codAdvance === undefined) st.codAdvance = 20; }
+    if ((d.v || 1) < 11) { const st = d.settings = d.settings || {}; if (st.codAdvance === undefined || Number(st.codAdvance) === 20) st.codAdvance = 30; }
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;
@@ -138,7 +139,7 @@
   /* COD needs an advance (settings.codAdvance %, default 20); other methods are paid in full before dispatch */
   function advanceOf(s, pay, total) {
     if (pay !== 'cod') return total;
-    const pct = Math.max(0, Math.min(100, Number((s || {}).codAdvance ?? 20) || 0));
+    const pct = Math.max(0, Math.min(100, Number((s || {}).codAdvance ?? 30) || 0));
     return Math.round(total * pct / 100);
   }
   function computeOrder(db, payload, applyStock) {
