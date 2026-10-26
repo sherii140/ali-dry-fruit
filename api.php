@@ -154,6 +154,9 @@ function patch_contact() {
     if (!isset($st['pay']) || !is_array($st['pay'])) $st['pay'] = ['cod' => true];
     foreach ($realPay as $k => $v) { $cur = (string)($st['pay'][$k] ?? ''); if (trim($cur) === '' || strpos($cur, 'XX') !== false) { $st['pay'][$k] = $v; $ch = true; } }
     if ($ch) kv_set('settings', $st);
+    // one time: remove every old product before the owner's new catalogue goes in
+    $st2 = kv_get('settings');
+    if (is_array($st2) && empty($st2['wipe14'])) { kv_set('products', []); $st2['wipe14'] = 1; kv_set('settings', $st2); }
     // sharp phone hero: text-free photo + headline as real text
     $bs = kv_get('banners');
     if (is_array($bs)) foreach ($bs as $i => $b) if (($b['id'] ?? '') === 'b0' && ($b['fullMobile'] ?? '') === 'assets/img/banner-main-mobile.jpg') {

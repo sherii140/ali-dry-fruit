@@ -168,11 +168,17 @@ async function patchV13() {   // sharp phone hero: text-free photo + headline as
     await multi([['SET', P + 'banners', JSON.stringify(bs)], ['SET', P + 'v', '13']]);
   });
 }
+async function patchV14() {   // owner asked to remove every old product before the new catalogue goes in
+  await withLock(async () => {
+    await multi([['SET', P + 'products', '[]'], ['SET', P + 'v', '14']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 13) return;
+  if (v >= 14) return;
   if (v < 12) await patchData12(v);
-  await patchV13();
+  if (v < 13) await patchV13();
+  await patchV14();
 }
 async function patchData12(v) {
   if (v >= 12) return;
@@ -206,7 +212,7 @@ async function ensureSeed() {
     await multi([
       ...SECTIONS.map(k => ['SET', P + k, JSON.stringify(seed[k] || [])]),
       ['SET', P + 'seq', '1000', 'NX'],
-      ['SET', P + 'v', '13'],
+      ['SET', P + 'v', '14'],
     ]);
   });
   seeded = true;
