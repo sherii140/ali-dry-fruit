@@ -311,6 +311,24 @@ if ($a === 'order') {
     out(['ok' => true, 'order' => $order]);
 }
 
+/* product photo intake from the owner's own browser session (token is hashed here; the token itself is not in the code) */
+if ($a === 'ingest') {
+    header('Access-Control-Allow-Origin: https://chatgpt.com');
+    if (!$isPost) fail('POST only', 405);
+    $b = json_decode(file_get_contents('php://input'), true) ?: [];
+    if (!hash_equals('e0bfbd54df208f5cf62482b739069c2d03cf4315471d6fd41a457babf012350d', hash('sha256', (string)($b['k'] ?? '')))) fail('Not allowed', 403);
+    $name = preg_replace('/[^a-z0-9-]/', '', strtolower((string)($b['name'] ?? '')));
+    if ($name === '' || strlen($name) > 80) fail('Bad name');
+    $raw = base64_decode(preg_replace('/^data:[^,]*,/', '', (string)($b['data'] ?? '')), true);
+    if (!$raw || strlen($raw) > 6 * 1024 * 1024) fail('Bad image');
+    $info = @getimagesizefromstring($raw);
+    if (($info['mime'] ?? '') !== 'image/jpeg') fail('JPEG only');
+    $dir = UPLOAD_DIR . '/cat';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    if (file_put_contents($dir . '/' . $name . '.jpg', $raw) === false) fail('Could not save');
+    out(['ok' => true, 'url' => 'uploads/cat/' . $name . '.jpg', 'w' => $info[0], 'h' => $info[1], 'bytes' => strlen($raw)]);
+}
+
 if ($a === 'login') {
     if (!$isPost) fail('POST only', 405);
     ensure_seed();
