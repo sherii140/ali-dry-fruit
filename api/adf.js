@@ -175,12 +175,12 @@ async function patchV14() {   // owner asked to remove every old product before 
 }
 async function patchV15() {   // owner's new catalogue (81 products with edited photos)
   await withLock(async () => {
-    await multi([['SET', P + 'products', JSON.stringify(readSeed().products || [])], ['SET', P + 'v', '15']]);
+    await multi([['SET', P + 'products', JSON.stringify(readSeed().products || [])], ['SET', P + 'v', '16']]);
   });
 }
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 15) return;
+  if (v >= 16) return;
   if (v < 12) await patchData12(v);
   if (v < 13) await patchV13();
   if (v < 14) await patchV14();
