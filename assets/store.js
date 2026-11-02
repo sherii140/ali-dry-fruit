@@ -90,6 +90,7 @@
     if ((d.v || 1) < 12) { const st = d.settings = d.settings || {}; st.pay = st.pay || {}; ['easypaisa', 'jazzcash', 'bank'].forEach(k => { const cur = String(st.pay[k] || ''); if (!cur.trim() || /XX/.test(cur)) st.pay[k] = S.settings.pay[k]; }); }
     if ((d.v || 1) < 13) { const b0 = (d.banners || []).find(b => b.id === 'b0'), sb = S.banners.find(b => b.id === 'b0'); if (b0 && sb && b0.fullMobile === 'assets/img/banner-main-mobile.jpg') { b0.fullMobile = sb.fullMobile; b0.mText = sb.mText; } }
     if ((d.v || 1) < 14) d.products = [];
+    if ((d.v || 1) < 15) d.products = clone(S.products);
     d.v = S.v;
     try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {}
     return d;

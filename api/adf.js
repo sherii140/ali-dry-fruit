@@ -173,12 +173,18 @@ async function patchV14() {   // owner asked to remove every old product before 
     await multi([['SET', P + 'products', '[]'], ['SET', P + 'v', '14']]);
   });
 }
+async function patchV15() {   // owner's new catalogue (81 products with edited photos)
+  await withLock(async () => {
+    await multi([['SET', P + 'products', JSON.stringify(readSeed().products || [])], ['SET', P + 'v', '15']]);
+  });
+}
 async function patchData() {
   const v = Number(await cmd('GET', P + 'v'));
-  if (v >= 14) return;
+  if (v >= 15) return;
   if (v < 12) await patchData12(v);
   if (v < 13) await patchV13();
-  await patchV14();
+  if (v < 14) await patchV14();
+  await patchV15();
 }
 async function patchData12(v) {
   if (v >= 12) return;

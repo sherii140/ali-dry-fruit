@@ -157,6 +157,15 @@ function patch_contact() {
     // one time: remove every old product before the owner's new catalogue goes in
     $st2 = kv_get('settings');
     if (is_array($st2) && empty($st2['wipe14'])) { kv_set('products', []); $st2['wipe14'] = 1; kv_set('settings', $st2); }
+    // one time: the owner's new catalogue (81 products, edited photos) from assets/seed.js
+    $st3 = kv_get('settings');
+    if (is_array($st3) && empty($st3['cat15'])) {
+        $s = @file_get_contents(SEED_FILE);
+        $seed = $s === false ? null : json_decode(rtrim(substr(trim($s), strpos(trim($s), '=') + 1), "; \n\r\t"), true);
+        if (is_array($seed) && is_array($seed['products'] ?? null) && count($seed['products']) > 0) {
+            kv_set('products', $seed['products']); $st3['cat15'] = 1; kv_set('settings', $st3);
+        }
+    }
     // sharp phone hero: text-free photo + headline as real text
     $bs = kv_get('banners');
     if (is_array($bs)) foreach ($bs as $i => $b) if (($b['id'] ?? '') === 'b0' && ($b['fullMobile'] ?? '') === 'assets/img/banner-main-mobile.jpg') {
