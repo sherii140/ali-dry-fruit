@@ -343,6 +343,9 @@ h1,h2,h3{text-wrap:balance}
     <h1>Admin login</h1>
     <div class="f"><label for="pw">Password</label><input class="in" id="pw" type="password" autocomplete="current-password" required></div>
     <div class="small" id="loginErr" style="color:var(--danger);min-height:1.2em" role="alert"></div>
+    <div id="newPwBox" hidden><p class="small" style="margin:0 0 8px">For security, set your own admin password now (at least 8 characters). The factory password will stop working.</p>
+      <div class="f"><label for="npw1">New password</label><input class="in" id="npw1" type="password" autocomplete="new-password" minlength="8"></div>
+      <div class="f"><label for="npw2">Repeat new password</label><input class="in" id="npw2" type="password" autocomplete="new-password" minlength="8"></div></div>
     <button class="btn" type="submit" id="loginBtn">Log in</button>
     <div class="lmode" id="loginMode">Checking server…</div>
   </form>
@@ -1118,7 +1121,7 @@ async function pgSettings(){
       <div class="col">
         <form class="card stack" id="pwForm"><h2>Admin password</h2>
           <div class="f"><label for="pwCur">Current password</label><input class="in" id="pwCur" type="password" autocomplete="current-password" required></div>
-          <div class="f"><label for="pwNew">New password</label><input class="in" id="pwNew" type="password" autocomplete="new-password" minlength="4" required></div>
+          <div class="f"><label for="pwNew">New password</label><input class="in" id="pwNew" type="password" autocomplete="new-password" minlength="8" required></div>
           <div class="f"><label for="pwNew2">Repeat new password</label><input class="in" id="pwNew2" type="password" autocomplete="new-password" required></div>
           <button class="btn" type="submit" style="align-self:flex-start">Change password</button></form>
         <div class="card stack"><h2>Data &amp; backup</h2>
@@ -1252,7 +1255,14 @@ async function enter(){
 }
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();const b=$('#loginBtn');$('#loginErr').textContent='';busy(b,true,'Checking…');
-  try{await ADF.login($('#pw').value);$('#pw').value='';await enter();}
+  try{
+    if(!$('#newPwBox').hidden){
+      const a=$('#npw1').value,c=$('#npw2').value;
+      if(a.length<8)throw new Error('Use at least 8 characters.');if(a!==c)throw new Error('The two passwords do not match.');
+      await ADF.setPassword($('#pw').value,a);$('#pw').value=$('#npw1').value=$('#npw2').value='';$('#newPwBox').hidden=true;$('#pw').closest('.f').hidden=false;$('#loginBtn').dataset.l='Log in';await enter();return;}
+    const r=await ADF.login($('#pw').value);
+    if(r==='change'){$('#newPwBox').hidden=false;$('#pw').closest('.f').hidden=true;$('#loginBtn').dataset.l='Save new password';setTimeout(()=>$('#npw1').focus(),50);return;}
+    $('#pw').value='';await enter();}
   catch(x){$('#loginErr').textContent=x.message||'Could not log in.';}
   finally{busy(b,false);}
 });

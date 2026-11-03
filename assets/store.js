@@ -241,7 +241,7 @@
 
     /* admin */
     async login(pw) {
-      if (mode === 'server') { await call('login', { password: pw }); return true; }
+      if (mode === 'server') { const j = await call('login', { password: pw }); return j.mustChange ? 'change' : true; }
       if (mode === 'offline') throw new Error('The server is not set up yet: ' + note);
       let cur = '1234'; try { cur = localStorage.getItem(PKEY) || '1234'; } catch (e) {}
       if (pw !== cur) throw new Error('Wrong password. Try again.');
@@ -280,7 +280,7 @@
       const d = readLocal(); d.orders = (d.orders || []).filter(o => !ids.includes(o.id)); writeLocal(d);
     },
     async setPassword(current, next) {
-      if (String(next).length < 4) throw new Error('Use at least 4 characters for the new password.');
+      if (String(next).length < 8) throw new Error('Use at least 8 characters for the new password.');
       if (mode === 'server') { await call('password', { current, new: next }); return; }
       let cur = '1234'; try { cur = localStorage.getItem(PKEY) || '1234'; } catch (e) {}
       if (current !== cur) throw new Error('Current password is wrong.');

@@ -28,6 +28,9 @@ const MAX_UPLOAD = 6 * 1024 * 1024;
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: same-origin');
+header_remove('X-Powered-By');
 ini_set('display_errors', '0');
 
 function out($d, $code = 200) {
@@ -193,16 +196,67 @@ function ensure_seed() {
     unlock();
 }
 
+/* ---------------- abuse protection ---------------- */
+function client_ip() {
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    $xff = trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''))[0]);
+    return substr($ip . '|' . $xff, 0, 100);
+}
+/* count hits in a time window; returns false when the limit is reached (file kept inside the closed data/ folder) */
+function rl_hit($bucket, $limit, $window, $count = true) {
+    if (!is_dir(DATA_DIR)) @mkdir(DATA_DIR, 0755, true);
+    $f = DATA_DIR . '/ratelimit.json';
+    $h = @fopen($f, 'c+'); if (!$h) return true;
+    flock($h, LOCK_EX);
+    $d = json_decode(stream_get_contents($h) ?: '[]', true); if (!is_array($d)) $d = [];
+    $now = time();
+    foreach ($d as $k => $list) { $d[$k] = array_values(array_filter((array)$list, function ($ts) use ($now) { return $ts > $now - 86400; })); if (!$d[$k]) unset($d[$k]); }
+    $key = hash('sha256', $bucket);
+    $recent = array_filter($d[$key] ?? [], function ($ts) use ($now, $window) { return $ts > $now - $window; });
+    $ok = count($recent) < $limit;
+    if ($ok && $count) $d[$key][] = $now;
+    ftruncate($h, 0); rewind($h); fwrite($h, json_encode($d)); fflush($h);
+    flock($h, LOCK_UN); fclose($h);
+    return $ok;
+}
+function rl_clear($bucket) {
+    $f = DATA_DIR . '/ratelimit.json'; $h = @fopen($f, 'c+'); if (!$h) return;
+    flock($h, LOCK_EX);
+    $d = json_decode(stream_get_contents($h) ?: '[]', true); if (!is_array($d)) $d = [];
+    unset($d[hash('sha256', $bucket)]);
+    ftruncate($h, 0); rewind($h); fwrite($h, json_encode($d)); fflush($h);
+    flock($h, LOCK_UN); fclose($h);
+}
+/* POSTs must come from this site (blocks cross-site form / script posts) */
+function same_origin() {
+    $o = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+    if ($o === '') return true;
+    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    return strtolower((string)parse_url($o, PHP_URL_HOST)) === preg_replace('/:\d+$/', '', $host);
+}
+
 /* ---------------- admin session ---------------- */
 function start_session() {
     if (session_status() === PHP_SESSION_ACTIVE) return;
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
     session_name('adf_admin');
-    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
-        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')]);
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Strict', 'secure' => $https]);
     session_start();
 }
-function is_admin() { start_session(); return !empty($_SESSION['adf_admin']); }
-function need_admin() { if (!is_admin()) fail('Please log in again.', 401); }
+const ADMIN_IDLE = 8 * 3600;   // log out after 8 hours without activity
+function is_admin() {
+    start_session();
+    if (empty($_SESSION['adf_admin'])) return false;
+    if (time() - (int)($_SESSION['t'] ?? 0) > ADMIN_IDLE) { $_SESSION = []; session_destroy(); return false; }
+    $_SESSION['t'] = time();
+    return true;
+}
+function need_admin($a = '') {
+    if (!is_admin()) fail('Please log in again.', 401);
+    if (!empty($_SESSION['must_change']) && $a !== 'password') fail('Please set a new admin password first.', 403);
+}
 function check_password($pw) {
     $a = kv_get('admin');
     if ($a && !empty($a['hash'])) return password_verify($pw, $a['hash']);
@@ -249,8 +303,11 @@ if ($a === 'store') {
     out(['ok' => true, 'data' => ['settings' => public_settings(kv_get('settings') ?? []), 'banners' => $banners, 'collections' => $cols, 'products' => $products]]);
 }
 
+if ($isPost && !same_origin()) fail('Not allowed', 403);
+
 if ($a === 'order') {
     if (!$isPost) fail('POST only', 405);
+    if (!rl_hit('order|' . client_ip(), 6, 600) || !rl_hit('order-all', 120, 3600)) fail('Too many orders from this connection. Please wait a few minutes or order on WhatsApp.', 429);
     ensure_seed();
     $b = body(); $c = $b['customer'] ?? [];
     $name = str($c['name'] ?? '', 80);
@@ -260,6 +317,7 @@ if ($a === 'order') {
     $notes = str($c['notes'] ?? '', 500);
     if (mb_strlen($name) < 3) fail('Please enter your full name.');
     if (!preg_match('/^(\+?92|0)3\d{9}$/', $phone)) fail('Enter a valid mobile number, for example 0300 1234567.');
+    if (!rl_hit('order-phone|' . substr($phone, -10), 5, 3600)) fail('Too many orders for this number. Please wait or message us on WhatsApp.', 429);
     if (mb_strlen($city) < 2) fail('Please enter your city.');
     if (mb_strlen($addr) < 8) fail('Please enter your full address so the rider can find you.');
     $items = is_array($b['items'] ?? null) ? array_slice($b['items'], 0, 50) : [];
@@ -320,39 +378,26 @@ if ($a === 'order') {
     out(['ok' => true, 'order' => $order]);
 }
 
-/* product photo intake from the owner's own browser session (token is hashed here; the token itself is not in the code) */
-if ($a === 'ingest') {
-    header('Access-Control-Allow-Origin: https://chatgpt.com');
-    if (!$isPost) fail('POST only', 405);
-    $b = json_decode(file_get_contents('php://input'), true) ?: [];
-    if (!hash_equals('e0bfbd54df208f5cf62482b739069c2d03cf4315471d6fd41a457babf012350d', hash('sha256', (string)($b['k'] ?? '')))) fail('Not allowed', 403);
-    $name = preg_replace('/[^a-z0-9-]/', '', strtolower((string)($b['name'] ?? '')));
-    if ($name === '' || strlen($name) > 80) fail('Bad name');
-    $raw = base64_decode(preg_replace('/^data:[^,]*,/', '', (string)($b['data'] ?? '')), true);
-    if (!$raw || strlen($raw) > 6 * 1024 * 1024) fail('Bad image');
-    $info = @getimagesizefromstring($raw);
-    if (($info['mime'] ?? '') !== 'image/jpeg') fail('JPEG only');
-    $dir = UPLOAD_DIR . '/cat';
-    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-    if (file_put_contents($dir . '/' . $name . '.jpg', $raw) === false) fail('Could not save');
-    out(['ok' => true, 'url' => 'uploads/cat/' . $name . '.jpg', 'w' => $info[0], 'h' => $info[1], 'bytes' => strlen($raw)]);
-}
-
 if ($a === 'login') {
     if (!$isPost) fail('POST only', 405);
     ensure_seed();
     $pw = (string)(body()['password'] ?? '');
+    $ipKey = 'login|' . client_ip();
+    if (!rl_hit($ipKey, 5, 900, false) || !rl_hit('login-all', 30, 900, false)) fail('Too many wrong tries. Wait 15 minutes and try again.', 429);
     start_session();
-    if (!check_password($pw)) { usleep(800000); fail('Wrong password. Try again.', 401); }
+    if (!check_password($pw)) { rl_hit($ipKey, 5, 900); rl_hit('login-all', 30, 900); usleep(800000); fail('Wrong password. Try again.', 401); }
+    rl_clear($ipKey);
     session_regenerate_id(true);
-    $_SESSION['adf_admin'] = true;
-    out(['ok' => true]);
+    $_SESSION['adf_admin'] = true; $_SESSION['t'] = time();
+    $a0 = kv_get('admin'); $must = !($a0 && !empty($a0['hash']));   // still on the factory password
+    if ($must) $_SESSION['must_change'] = true; else unset($_SESSION['must_change']);
+    out(['ok' => true, 'mustChange' => $must]);
 }
 if ($a === 'logout') { start_session(); $_SESSION = []; session_destroy(); out(['ok' => true]); }
-if ($a === 'me') { out(['ok' => true, 'authed' => is_admin()]); }
+if ($a === 'me') { out(['ok' => true, 'authed' => is_admin() && empty($_SESSION['must_change'])]); }
 
 /* ---------- everything below needs the admin session ---------- */
-need_admin();
+need_admin($a);
 if ($a === 'proof') {   // payment screenshot of an order
     $f = proof_file((string)($_GET['id'] ?? ''));
     if (!is_file($f)) fail('Not found', 404);
@@ -408,10 +453,13 @@ if ($a === 'orders_delete') {
 
 if ($a === 'password') {
     $b = body();
+    if (!rl_hit('pwchange|' . client_ip(), 10, 900)) fail('Too many tries. Wait 15 minutes.', 429);
     if (!check_password((string)($b['current'] ?? ''))) fail('Current password is wrong.');
     $new = (string)($b['new'] ?? '');
-    if (strlen($new) < 4) fail('Use at least 4 characters for the new password.');
+    if (strlen($new) < 8) fail('Use at least 8 characters for the new password.');
+    if ($new === ADMIN_PASS_DEFAULT || $new === (string)($b['current'] ?? '')) fail('Choose a new password that is different from the old one.');
     lock(); try { kv_set('admin', ['hash' => password_hash($new, PASSWORD_DEFAULT)]); } finally { unlock(); }
+    unset($_SESSION['must_change']); session_regenerate_id(true);
     out(['ok' => true]);
 }
 
