@@ -2,6 +2,8 @@
 data/store.php
 data/store.php.tmp
 data/.lock
+data/ratelimit.json
+data/proofs/
 uploads/*
 !uploads/.htaccess
 # Database password
