@@ -779,7 +779,56 @@ let mine=load('adf_my_orders',[]);
 let sel={};                              // chosen weight per product
 const WA_SVG='<svg viewBox="0 0 32 32"><path d="M16 3a13 13 0 0 0-11.3 19.4L3 29l6.8-1.8A13 13 0 1 0 16 3Zm0 23.6a10.6 10.6 0 0 1-5.4-1.5l-.4-.2-4 1 1.1-3.9-.3-.4A10.6 10.6 0 1 1 16 26.6Zm5.8-7.9c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.2-.6.1a8.7 8.7 0 0 1-4.3-3.8c-.3-.6.3-.5.9-1.7a.6.6 0 0 0 0-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.9.4 3.7 3.7 0 0 0-1.1 2.7 6.4 6.4 0 0 0 1.3 3.4 14.7 14.7 0 0 0 5.6 5c2.1.9 2.9 1 4 .8a3.4 3.4 0 0 0 2.2-1.6 2.8 2.8 0 0 0 .2-1.6c-.1-.2-.3-.3-.6-.4Z"/></svg>';
 /* Meta Pixel e-commerce events (PKR) */
-const px=(ev,data,opt)=>{try{if(window.fbq)fbq('track',ev,Object.assign({currency:'PKR'},data||{}),opt||{});}catch(e){}};
+/* First-party analytics: visits, source (UTM / platform), bounce, product views, add to cart, checkout.
+   Anonymous random ids only; nothing personal is sent. */
+const TRK=(()=>{
+  const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}};
+  const ss=(k,v)=>{try{if(v===undefined)return sessionStorage.getItem(k);sessionStorage.setItem(k,v);}catch(e){return null;}};
+  const rid=()=>Math.random().toString(36).slice(2,12)+Date.now().toString(36);
+  let nv=0,vid=ls('adf_vid');if(!vid){vid=rid();ls('adf_vid',vid);nv=1;}
+  const now=Date.now();let sid=ss('adf_sid');const last=+ss('adf_sat')||0;
+  const q=new URLSearchParams(location.search),ref=document.referrer||'';
+  let refHost='';try{refHost=ref?new URL(ref).hostname.toLowerCase():'';}catch(e){}
+  const external=refHost&&refHost!==location.hostname;
+  const hasCampaign=q.get('utm_source')||q.get('fbclid')||q.get('gclid')||q.get('ttclid');
+  if(!sid||now-last>30*60e3||hasCampaign){sid=rid();ss('adf_sid',sid);ss('adf_src','');}
+  ss('adf_sat',String(now));
+  const plat=(s)=>{s=(s||'').toLowerCase();
+    if(/facebook|^fb$|fb\.|m\.facebook|l\.facebook/.test(s))return 'Facebook';if(/instagram|^ig$/.test(s))return 'Instagram';
+    if(/google/.test(s))return 'Google';if(/whatsapp|wa\.me/.test(s))return 'WhatsApp';if(/tiktok/.test(s))return 'TikTok';
+    if(/youtube|youtu\.be/.test(s))return 'YouTube';if(/bing/.test(s))return 'Bing';if(/twitter|t\.co|x\.com/.test(s))return 'X / Twitter';
+    if(/snapchat/.test(s))return 'Snapchat';return '';};
+  let src=null;try{src=JSON.parse(ss('adf_src')||'null');}catch(e){}
+  if(!src){
+    const us=q.get('utm_source')||'',um=q.get('utm_medium')||'',uc=q.get('utm_campaign')||'';
+    let p='Direct',m=um;
+    if(us)p=plat(us)||us.slice(0,30);
+    else if(q.get('fbclid')){p=plat(refHost)==='Instagram'?'Instagram':'Facebook';m=m||'paid';}
+    else if(q.get('gclid')){p='Google';m=m||'cpc';}
+    else if(q.get('ttclid')){p='TikTok';m=m||'paid';}
+    else if(external){p=plat(refHost)||refHost.replace(/^www\./,'').slice(0,30);m=m||(p==='Google'||p==='Bing'?'organic':'referral');}
+    const dev=/iPad|Tablet/i.test(navigator.userAgent)?'Tablet':/Mobi|Android|iPhone/i.test(navigator.userAgent)?'Mobile':'Desktop';
+    src={p,src:us,med:m,cmp:uc,dev};ss('adf_src',JSON.stringify(src));
+    if(p!=='Direct')ls('adf_touch',JSON.stringify(Object.assign({at:now},src)));
+  }
+  const API=(window.ADF_ROOT||'')+'api.php?a=t';
+  function send(e,extra){
+    if(!/^https?:/.test(location.protocol))return;
+    ss('adf_sat',String(Date.now()));
+    const b=JSON.stringify(Object.assign({e,sid,vid,nv},src,extra||{}));
+    try{if(navigator.sendBeacon&&navigator.sendBeacon(API,new Blob([b],{type:'text/plain'})))return;}catch(e){}
+    try{fetch(API,{method:'POST',body:b,keepalive:true,credentials:'same-origin'});}catch(e){}
+  }
+  /* order attribution: this visit's source, or the last ad/social touch in 30 days if this visit is direct */
+  function orderSrc(){let s=src;if(s.p==='Direct'){try{const t=JSON.parse(ls('adf_touch')||'null');if(t&&Date.now()-t.at<30*864e5)s=t;}catch(e){}}return {p:s.p,src:s.src,med:s.med,cmp:s.cmp,dev:src.dev,sid};}
+  send('pv');
+  let engaged=false;const eng=()=>{if(engaged)return;engaged=true;send('eng');};
+  setTimeout(()=>{if(document.visibilityState==='visible')eng();},12000);
+  addEventListener('scroll',()=>{if(scrollY>innerHeight*.6)eng();},{passive:true});
+  return {send,orderSrc};
+})();
+const px=(ev,data,opt)=>{try{if(window.fbq)fbq('track',ev,Object.assign({currency:'PKR'},data||{}),opt||{});}catch(e){}
+  try{const m={ViewContent:'view',AddToCart:'atc',InitiateCheckout:'ic',Contact:'wa'}[ev];if(m)TRK.send(m,{pid:(data&&data.content_ids&&data.content_ids[0])||''});}catch(e){}};
 const PAGE_COL=new URLSearchParams(location.search).get('collection')||'';
 let st={cat:PAGE_COL||'all',q:'',wish:false,more:0};
 const colURL=id=>location.pathname+(id&&id!=='all'?'?collection='+encodeURIComponent(id):'');
@@ -1176,7 +1225,7 @@ async function place(){
   if(needProof&&!proofData){e.textContent='Please upload the payment screenshot.';$('.upbox').scrollIntoView({block:'center',behavior:'smooth'});return;}
   e.textContent='';btn.disabled=true;btn.textContent='Placing order…';
   try{
-    const o=await ADF.placeOrder({customer,pay,proof:!$('#proofBox').hidden?proofData:'',items:lines().map(l=>({pid:l.p.id,w:l.v.w,qty:l.qty}))});
+    const o=await ADF.placeOrder({customer,pay,src:TRK.orderSrc(),proof:!$('#proofBox').hidden?proofData:'',items:lines().map(l=>({pid:l.p.id,w:l.v.w,qty:l.qty}))});
     proofData='';
     px('Purchase',{content_ids:(o.items||[]).map(i=>i.pid||i.id||i.name),content_type:'product',num_items:(o.items||[]).reduce((s,i)=>s+(i.qty||0),0),value:Number(o.total)||0},{eventID:'order_'+o.id});
     last=o;mine.push({id:o.id,at:o.at,total:o.total,pay:o.pay,items:o.items});store('adf_my_orders',mine.slice(-30));

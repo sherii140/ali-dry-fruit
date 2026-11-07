@@ -235,6 +235,86 @@ function same_origin() {
     return strtolower((string)parse_url($o, PHP_URL_HOST)) === preg_replace('/:\d+$/', '', $host);
 }
 
+
+/* ---------------- website analytics (first-party, no cookies; files in the closed data/ folder) ---------------- */
+const AN_DIR = DATA_DIR . '/an';
+function an_clean($v, $max = 60) { return mb_substr(preg_replace('/[^\p{L}\p{N} ._\-\/:+|]/u', '', (string)$v), 0, $max); }
+function an_update($day, $fn) {
+    if (!is_dir(AN_DIR)) @mkdir(AN_DIR, 0755, true);
+    $h = @fopen(AN_DIR . '/' . $day . '.json', 'c+'); if (!$h) return;
+    flock($h, LOCK_EX);
+    $d = json_decode(stream_get_contents($h) ?: '{}', true); if (!is_array($d)) $d = [];
+    $d += ['s' => [], 'atc' => [], 'view' => []];
+    $fn($d);
+    ftruncate($h, 0); rewind($h); fwrite($h, json_encode($d, JSON_UNESCAPED_UNICODE)); fflush($h);
+    flock($h, LOCK_UN); fclose($h);
+}
+function an_track($b) {
+    $e = (string)($b['e'] ?? '');
+    if (!in_array($e, ['pv', 'eng', 'view', 'atc', 'ic', 'wa'], true)) return;
+    $sid = preg_replace('/[^a-z0-9]/i', '', (string)($b['sid'] ?? '')); if (strlen($sid) < 8) return;
+    $sid = substr($sid, 0, 24);
+    $day = gmdate('Y-m-d', time() + 5 * 3600);   // Pakistan time
+    an_update($day, function (&$d) use ($b, $e, $sid) {
+        if (!isset($d['s'][$sid])) {
+            if (count($d['s']) >= 30000) return;
+            $d['s'][$sid] = ['v' => substr(preg_replace('/[^a-z0-9]/i', '', (string)($b['vid'] ?? '')), 0, 24),
+                'p' => an_clean($b['p'] ?? 'Direct', 30), 'src' => an_clean($b['src'] ?? '', 60), 'med' => an_clean($b['med'] ?? '', 40),
+                'cmp' => an_clean($b['cmp'] ?? '', 80), 'dev' => an_clean($b['dev'] ?? '', 10), 'new' => !empty($b['nv']) ? 1 : 0,
+                't' => time(), 'pv' => 0, 'eng' => 0, 'view' => 0, 'atc' => 0, 'ic' => 0, 'wa' => 0, 'o' => 0, 'rev' => 0];
+        }
+        $s = &$d['s'][$sid];
+        $s[$e] = min(999, (int)($s[$e] ?? 0) + 1);
+        $pid = an_clean($b['pid'] ?? '', 80);
+        if ($pid !== '' && ($e === 'atc' || $e === 'view')) $d[$e][$pid] = (int)($d[$e][$pid] ?? 0) + 1;
+    });
+}
+function an_order($src, $total) {
+    $sid = substr(preg_replace('/[^a-z0-9]/i', '', (string)($src['sid'] ?? '')), 0, 24); if (strlen($sid) < 8) return;
+    $day = gmdate('Y-m-d', time() + 5 * 3600);
+    an_update($day, function (&$d) use ($sid, $total) { if (isset($d['s'][$sid])) { $d['s'][$sid]['o']++; $d['s'][$sid]['rev'] += (int)$total; } });
+}
+function an_stats($days) {
+    $days = max(1, min(120, (int)$days));
+    $tot = ['sessions' => 0, 'visitors' => 0, 'newv' => 0, 'bounce' => 0, 'pv' => 0, 'view' => 0, 'atc' => 0, 'ic' => 0, 'wa' => 0, 'orders' => 0, 'rev' => 0,
+            'sAtc' => 0, 'sIc' => 0, 'sView' => 0];
+    $vis = []; $by = ['p' => [], 'cmp' => [], 'dev' => []]; $daily = []; $atc = []; $view = [];
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $day = gmdate('Y-m-d', time() + 5 * 3600 - $i * 86400);
+        $f = AN_DIR . '/' . $day . '.json';
+        $d = is_file($f) ? (json_decode((string)@file_get_contents($f), true) ?: []) : [];
+        $row = ['d' => $day, 'sessions' => 0, 'atc' => 0, 'ic' => 0, 'orders' => 0];
+        foreach (($d['s'] ?? []) as $s) {
+            $bounce = (int)$s['eng'] === 0 && (int)$s['view'] === 0 && (int)$s['atc'] === 0 && (int)$s['ic'] === 0 && (int)$s['wa'] === 0 && (int)$s['o'] === 0 && (int)$s['pv'] <= 1;
+            $tot['sessions']++; $row['sessions']++;
+            if ($bounce) $tot['bounce']++;
+            if (!empty($s['v'])) $vis[$s['v']] = 1;
+            if (!empty($s['new'])) $tot['newv']++;
+            foreach (['pv', 'view', 'atc', 'ic', 'wa'] as $k) $tot[$k] += (int)$s[$k];
+            $tot['orders'] += (int)$s['o']; $tot['rev'] += (int)$s['rev'];
+            if ($s['atc']) $tot['sAtc']++; if ($s['ic']) $tot['sIc']++; if ($s['view']) $tot['sView']++;
+            $row['atc'] += (int)$s['atc']; $row['ic'] += (int)$s['ic']; $row['orders'] += (int)$s['o'];
+            $keys = ['p' => $s['p'] ?: 'Direct', 'dev' => $s['dev'] ?: 'Other',
+                     'cmp' => ($s['src'] !== '' || $s['cmp'] !== '') ? ($s['src'] ?: '-') . ' / ' . ($s['med'] ?: '-') . ' / ' . ($s['cmp'] ?: '-') : null];
+            foreach ($keys as $g => $k) {
+                if ($k === null) continue;
+                $r = &$by[$g][$k];
+                if (!$r) $r = ['k' => $k, 'sessions' => 0, 'bounce' => 0, 'atc' => 0, 'ic' => 0, 'orders' => 0, 'rev' => 0];
+                $r['sessions']++; if ($bounce) $r['bounce']++;
+                $r['atc'] += (int)$s['atc']; $r['ic'] += (int)$s['ic']; $r['orders'] += (int)$s['o']; $r['rev'] += (int)$s['rev'];
+                unset($r);
+            }
+        }
+        foreach (($d['atc'] ?? []) as $k => $n) $atc[$k] = ($atc[$k] ?? 0) + $n;
+        foreach (($d['view'] ?? []) as $k => $n) $view[$k] = ($view[$k] ?? 0) + $n;
+        $daily[] = $row;
+    }
+    $tot['visitors'] = count($vis);
+    foreach ($by as $g => $list) { $l = array_values($list); usort($l, function ($a, $b) { return $b['sessions'] - $a['sessions']; }); $by[$g] = array_slice($l, 0, 30); }
+    arsort($atc); arsort($view);
+    return ['days' => $days, 'tot' => $tot, 'by' => $by, 'daily' => $daily, 'atc' => array_slice($atc, 0, 15, true), 'view' => array_slice($view, 0, 15, true)];
+}
+
 /* ---------------- admin session ---------------- */
 function start_session() {
     if (session_status() === PHP_SESSION_ACTIVE) return;
@@ -305,6 +385,12 @@ if ($a === 'store') {
 
 if ($isPost && !same_origin()) fail('Not allowed', 403);
 
+if ($a === 't') {   // analytics beacon
+    if (!$isPost) fail('POST only', 405);
+    if (rl_hit('t|' . client_ip(), 400, 600)) { $tb = json_decode(file_get_contents('php://input'), true); if (is_array($tb)) an_track($tb); }
+    out(['ok' => true]);
+}
+
 if ($a === 'order') {
     if (!$isPost) fail('POST only', 405);
     if (!rl_hit('order|' . client_ip(), 6, 600) || !rl_hit('order-all', 120, 3600)) fail('Too many orders from this connection. Please wait a few minutes or order on WhatsApp.', 429);
@@ -367,6 +453,9 @@ if ($a === 'order') {
             'customer' => compact('name', 'phone', 'city', 'addr', 'notes'),
             'items' => $lines, 'sub' => $sub, 'ship' => $ship, 'total' => $total,
             'pay' => $pay, 'advance' => $advance, 'proof' => (bool)$proof, 'status' => 'pending', 'paid' => false, 'note' => ''];
+        $sb = is_array($b['src'] ?? null) ? $b['src'] : [];
+        $order['src'] = ['p' => an_clean($sb['p'] ?? 'Direct', 30), 'src' => an_clean($sb['src'] ?? '', 60), 'med' => an_clean($sb['med'] ?? '', 40),
+                         'cmp' => an_clean($sb['cmp'] ?? '', 80), 'dev' => an_clean($sb['dev'] ?? '', 10)];
         if ($proof) {
             if (!is_dir(PROOF_DIR)) @mkdir(PROOF_DIR, 0755, true);
             if (@file_put_contents(proof_file($order['id']), $proof) === false) fail('Could not save the screenshot. Please try again.');
@@ -375,6 +464,7 @@ if ($a === 'order') {
         kv_set('seq', $seq);
         order_put($order);
     } finally { unlock(); }
+    try { an_order($b['src'] ?? [], $order['total']); } catch (Throwable $e) {}
     out(['ok' => true, 'order' => $order]);
 }
 
@@ -406,7 +496,9 @@ if ($a === 'proof') {   // payment screenshot of an order
     header('Cache-Control: private, max-age=86400');
     readfile($f); exit;
 }
-if (!$isPost && $a !== 'all') fail('POST only', 405);
+if (!$isPost && $a !== 'all' && $a !== 'stats') fail('POST only', 405);
+
+if ($a === 'stats') { out(['ok' => true, 'data' => an_stats((int)($_GET['days'] ?? 7))]); }
 
 if ($a === 'all') {
     ensure_seed();

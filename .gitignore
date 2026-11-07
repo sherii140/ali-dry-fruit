@@ -3,6 +3,7 @@ data/store.php
 data/store.php.tmp
 data/.lock
 data/ratelimit.json
+data/an/
 data/proofs/
 uploads/*
 !uploads/.htaccess

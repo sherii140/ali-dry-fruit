@@ -257,6 +257,11 @@
       try { sessionStorage.removeItem(SKEY); } catch (e) {}
     },
     async all() { if (mode === 'server') return (await call('all')).data; return readLocal(); },
+    async stats(days) {
+      if (mode !== 'server') return null;
+      const r = await fetch(API + '?a=stats&days=' + encodeURIComponent(days), { credentials: 'same-origin', cache: 'no-store' });
+      const j = await r.json(); if (!j.ok) throw new Error(j.error || 'Could not load analytics.'); return j.data;
+    },
     async save(key, value) {
       if (!['settings', 'banners', 'collections', 'products'].includes(key)) throw new Error('Unknown section');
       if (mode === 'server') { await call('save', { key, value }); return; }

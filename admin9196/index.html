@@ -96,6 +96,22 @@ h1,h2,h3{text-wrap:balance}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .g2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
+.an-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.an-kpis .kpi b{font-size:22px}
+.funnel{display:grid;gap:10px}
+.funnel .fr{display:grid;grid-template-columns:150px 1fr 120px;gap:12px;align-items:center;font-size:13px}
+.funnel .fb{height:26px;background:#EEF3EC;border-radius:7px;overflow:hidden}
+.funnel .fb i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#3a8a44);border-radius:7px}
+.funnel .fr small{color:var(--muted)}
+.dbars{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:10px}
+.dbars .db{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;min-width:0;height:100%}
+.dbars .db i{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:#C9DCC4}
+.dbars .db i.a{background:var(--green)}
+.dbars .db span{font-size:9.5px;color:var(--muted);white-space:nowrap}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.an-note{font-size:12px;color:var(--muted)}
+@media(max-width:1100px){.an-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.an-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.funnel .fr{grid-template-columns:96px 1fr 84px;font-size:12px}}
 .g2e{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
 .col{display:flex;flex-direction:column;gap:18px;min-width:0}
 .muted{color:var(--muted)}
@@ -517,6 +533,70 @@ addEventListener('hashchange',route);
 function title(t){$('#pageTitle').textContent=t;document.title=t+' · Ali Dry Fruit Admin';}
 
 /* ================= DASHBOARD ================= */
+
+/* ================= WEBSITE ANALYTICS (dashboard) ================= */
+const pctx=(a,b)=>b?Math.round(a/b*1000)/10+'%':'0%';
+async function renderAnalytics(days,inR){
+  const box=$('#anBox');if(!box)return;
+  if(ADF.mode()!=='server'){box.innerHTML='';return;}
+  box.innerHTML='<div class="card"><div class="an-note">Loading website analytics…</div></div>';
+  let S;try{S=await ADF.stats(days);}catch(e){box.innerHTML=`<div class="card"><div class="an-note">Analytics could not load: ${esc(e.message)}</div></div>`;return;}
+  if(!$('#anBox'))return;
+  const from=new Date(new Date().setHours(0,0,0,0)-(S.days-1)*864e5);
+  const T=S.tot,valid=DB.orders.filter(o=>o.status!=='cancelled'&&!o.sample&&new Date(o.at)>=from),lbl=`last ${S.days} days`;
+  const ordN=valid.length,rev=valid.reduce((s,o)=>s+o.total,0);
+  // orders by platform / campaign / city from the orders themselves
+  const grp=(f)=>{const m={};valid.forEach(o=>{const k=f(o);if(!k)return;m[k]=m[k]||{n:0,rev:0};m[k].n++;m[k].rev+=o.total;});return m;};
+  const oP=grp(o=>(o.src&&o.src.p)||'Unknown (before tracking)');
+  const oC=grp(o=>o.src&&(o.src.src||o.src.cmp)?`${o.src.src||'-'} / ${o.src.med||'-'} / ${o.src.cmp||'-'}`:null);
+  const city=grp(o=>{const c=String(o.customer.city||'').trim();return c?c.charAt(0).toUpperCase()+c.slice(1).toLowerCase():null;});
+  const cities=Object.entries(city).sort((a,b)=>b[1].n-a[1].n).slice(0,10),maxCity=cities.length?cities[0][1].n:1;
+  const plats=S.by.p.map(r=>r.k);Object.keys(oP).forEach(k=>{if(!plats.includes(k))plats.push(k);});
+  const row=k=>S.by.p.find(r=>r.k===k)||{sessions:0,bounce:0,atc:0,ic:0};
+  const cmps=S.by.cmp.map(r=>r.k);Object.keys(oC).forEach(k=>{if(!cmps.includes(k))cmps.push(k);});
+  const crow=k=>S.by.cmp.find(r=>r.k===k)||{sessions:0,bounce:0,atc:0,ic:0};
+  const fun=[['Visits (sessions)',T.sessions],['Viewed a product',T.sView],['Added to cart',T.sAtc],['Started checkout',T.sIc],['Placed order',ordN]];
+  const fmax=Math.max(1,T.sessions);
+  const dmax=Math.max(1,...S.daily.map(d=>d.sessions));
+  const step=Math.ceil(S.daily.length/15);
+  const pname=id=>{const p=prodById(id);return p?p.name:id;};
+  const atcList=Object.entries(S.atc).slice(0,8),atcMax=atcList.length?atcList[0][1]:1;
+  const tbl=(head,rows)=>`<div class="tw"><table class="tbl"><thead><tr>${head.map((h,i)=>`<th${i?' class="num"':''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${head.length}" class="muted">No data yet</td></tr>`}</tbody></table></div>`;
+  box.innerHTML=`
+  <div class="card stack">
+    <div class="ch"><div><h2>Website analytics</h2><div class="sub">${lbl} · visits, sources, bounce rate, add to cart</div></div></div>
+    <div class="an-kpis">
+      <div class="kpi"><span>Visitors</span><b>${T.visitors}</b><small>${T.newv} new</small></div>
+      <div class="kpi"><span>Visits</span><b>${T.sessions}</b><small>${T.pv} page loads</small></div>
+      <div class="kpi"><span>Bounce rate</span><b>${pctx(T.bounce,T.sessions)}</b><small>left without doing anything</small></div>
+      <div class="kpi"><span>Add to carts</span><b>${T.atc}</b><small>${T.sAtc} visits · ${pctx(T.sAtc,T.sessions)}</small></div>
+      <div class="kpi"><span>Checkouts started</span><b>${T.ic}</b><small>${T.sIc} visits · WhatsApp clicks ${T.wa}</small></div>
+      <div class="kpi"><span>Conversion rate</span><b>${pctx(ordN,T.sessions)}</b><small>${ordN} orders · ${fmt(rev)}</small></div>
+    </div>
+  </div>
+  <div class="g2e">
+    <div class="card stack"><div class="ch"><h2>Sales funnel</h2><span class="sub">${lbl}</span></div>
+      <div class="funnel">${fun.map(([l,n],i)=>`<div class="fr"><span>${l}</span><div class="fb"><i style="width:${Math.max(n?2:0,n/fmax*100)}%"></i></div><b>${n} <small>${i?pctx(n,fun[i-1][1])+' of prev':''}</small></b></div>`).join('')}</div>
+      <p class="an-note">Abandoned checkouts: <b>${Math.max(0,T.sIc-ordN)}</b> visits started checkout but did not order.</p></div>
+    <div class="card stack"><div class="ch"><h2>Visits & add to cart per day</h2><div class="legend"><span><i style="background:#C9DCC4"></i>Visits</span><span><i style="background:var(--green)"></i>Add to cart</span></div></div>
+      <div class="dbars">${S.daily.map((d,i)=>`<div class="db" title="${esc(d.d)}: ${d.sessions} visits, ${d.atc} add to cart, ${d.orders} orders"><i style="height:${d.sessions/dmax*100}%"></i><i class="a" style="height:${Math.min(d.sessions,d.atc)/dmax*100}%"></i><span>${i%step===0?d.d.slice(5):''}</span></div>`).join('')}</div></div>
+  </div>
+  <div class="card" style="padding-block:0"><div class="ch" style="padding-top:16px"><h2>Traffic by platform</h2><span class="sub">Facebook, Instagram, Google, WhatsApp, Direct…</span></div>
+    ${tbl(['Platform','Visits','Bounce','Add to cart','Checkouts','Orders','Revenue'],plats.map(k=>{const r=row(k),o=oP[k]||{n:0,rev:0};return `<tr><td><b>${esc(k)}</b></td><td class="num">${r.sessions}</td><td class="num">${pctx(r.bounce,r.sessions)}</td><td class="num">${r.atc}</td><td class="num">${r.ic}</td><td class="num">${o.n}</td><td class="num">${fmt(o.rev)}</td></tr>`;}))}</div>
+  <div class="card" style="padding-block:0"><div class="ch" style="padding-top:16px"><h2>UTM campaigns</h2><span class="sub">utm_source / utm_medium / utm_campaign</span></div>
+    ${tbl(['Source / Medium / Campaign','Visits','Bounce','Add to cart','Checkouts','Orders','Revenue'],cmps.map(k=>{const r=crow(k),o=oC[k]||{n:0,rev:0};return `<tr><td><b>${esc(k)}</b></td><td class="num">${r.sessions}</td><td class="num">${pctx(r.bounce,r.sessions)}</td><td class="num">${r.atc}</td><td class="num">${r.ic}</td><td class="num">${o.n}</td><td class="num">${fmt(o.rev)}</td></tr>`;}))}
+    <p class="an-note" style="padding:0 20px 14px">Ad link example: <code>https://alidryfruit.com/?utm_source=facebook&amp;utm_medium=paid&amp;utm_campaign=dates_nov</code></p></div>
+  <div class="g2e">
+    <div class="card"><div class="ch"><h2>Top cities</h2><span class="sub">from orders · ${lbl}</span></div>
+      <div class="list">${cities.map(([c,v])=>`<div class="it"><div class="grow"><b>${esc(c)}</b><small>${v.n} order${v.n>1?'s':''} · ${fmt(v.rev)}</small><div class="bar"><i style="width:${Math.max(4,v.n/maxCity*100)}%"></i></div></div></div>`).join('')||'<div class="an-note">No orders in this period yet.</div>'}</div></div>
+    <div class="col">
+      <div class="card"><div class="ch"><h2>Most added to cart</h2><span class="sub">${lbl}</span></div>
+        <div class="list">${atcList.map(([id,n])=>`<div class="it">${thumb(prodById(id)||{images:[]})}<div class="grow"><b>${esc(pname(id))}</b><small>${n} add to cart · ${S.view[id]||0} views</small><div class="bar"><i style="width:${Math.max(4,n/atcMax*100)}%"></i></div></div></div>`).join('')||'<div class="an-note">No add to cart yet.</div>'}</div></div>
+      <div class="card"><div class="ch"><h2>Devices</h2></div>
+        <div class="list">${S.by.dev.map(r=>`<div class="it"><div class="grow"><b>${esc(r.k)}</b><small>${r.sessions} visits · bounce ${pctx(r.bounce,r.sessions)} · ${r.atc} add to cart</small></div></div>`).join('')||'<div class="an-note">No data yet.</div>'}</div></div>
+    </div>
+  </div>`;
+}
 async function pgDashboard(){
   title('Dashboard');
   try{await reload();renderNav('dashboard');}catch(e){}
@@ -545,6 +625,7 @@ async function pgDashboard(){
       <div class="kpi"><span>Average order value</span><b>${fmt(aov)}</b><small>${rangeLbl}</small></div>
       <a class="kpi ${pend?'attn':''}" href="#/orders" data-act="otab" data-v="pending"><span>Pending orders</span><b>${pend}</b><small>${pend?'Need confirmation':'All caught up'}</small></a>
     </div>
+    <div id="anBox"></div>
     <div class="card"><div class="ch"><div><h2>Sales ${days?'per day':'per month'}</h2><div class="sub">${rangeLbl}${hasSample?' · includes sample orders':''}</div></div></div>
       <div class="chart" id="chart" aria-label="Sales chart"></div></div>
     <div class="g2e">
@@ -559,6 +640,7 @@ async function pgDashboard(){
     </div>
     ${hasSample?`<p class="small muted">Sample orders are marked “Sample”. <button class="lnk" data-act="removeSamples">Remove sample orders</button></p>`:''}`;
   drawChart();
+  renderAnalytics(days||90,inR);
 }
 function series(){
   const valid=DB.orders.filter(o=>o.status!=='cancelled');
