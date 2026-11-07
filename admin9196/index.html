@@ -191,6 +191,20 @@ h1,h2,h3{text-wrap:balance}
 .pill.sample::before{display:none}
 
 /* Chart */
+.kpi .sp{display:block;width:100%;height:38px;margin-top:8px}
+.kpi .chg{font-size:11.5px;font-weight:600;margin-left:6px}.kpi .chg.up{color:#1D7A2C}.kpi .chg.dn{color:#B3261E}
+.kpi .row1{display:flex;align-items:baseline;flex-wrap:wrap}
+.stbar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:#EEF2EC;margin:4px 0 12px}
+.stbar i{display:block;height:100%}
+.strow{display:grid;grid-template-columns:14px 1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;cursor:pointer}
+.strow:last-child{border-bottom:0}.strow:hover{background:#F8FAF7}
+.strow .dot{width:10px;height:10px;border-radius:3px}
+.strow b{font-variant-numeric:tabular-nums}.strow small{color:var(--muted);min-width:90px;text-align:right;font-variant-numeric:tabular-nums}
+.paygrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.paygrid div{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.paygrid span{font-size:11.5px;color:var(--muted)}.paygrid b{display:block;font-size:19px;margin-top:2px;font-variant-numeric:tabular-nums}
+.paygrid .g b{color:#1D7A2C}.paygrid .r b{color:#B3261E}.paygrid .o b{color:var(--gold)}
+.lchart{position:relative;width:100%;height:190px}.lchart svg{display:block;width:100%;height:100%;overflow:visible}
 .chart{position:relative;width:100%;height:250px}
 .chart svg{display:block;width:100%;height:100%;overflow:visible}
 .chart .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;border-radius:8px;padding:7px 10px;font-size:12px;line-height:1.45;white-space:nowrap;transform:translate(-50%,-100%);box-shadow:0 6px 16px rgba(0,0,0,.18);z-index:2}
@@ -534,6 +548,32 @@ function title(t){$('#pageTitle').textContent=t;document.title=t+' · Ali Dry Fr
 
 /* ================= DASHBOARD ================= */
 
+
+/* ---------- Shopify-style helpers: sparklines, period change, line charts ---------- */
+function spark(vals,color='#1D5F26'){const n=vals.length;if(n<2)return '';const mx=Math.max(1,...vals),W=200,H=38;
+  const pts=vals.map((v,i)=>[(i/(n-1)*W).toFixed(1),(H-3-(v/mx)*(H-6)).toFixed(1)]);
+  return `<svg class="sp" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="M0,${H} L${pts.map(p=>p.join(',')).join(' L')} L${W},${H}Z" fill="${color}" opacity=".09"/><polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;}
+function chg(cur,prev){if(prev==null)return '';if(!prev)return cur?'<span class="chg up">new</span>':'';const p=Math.round((cur-prev)/prev*100);return `<span class="chg ${p>=0?'up':'dn'}">${p>=0?'▲':'▼'} ${Math.abs(p)}%</span>`;}
+function lineChart(el,labels,sets,fmtV){
+  if(!el)return;const W=el.clientWidth||600,H=el.clientHeight||190,pl=50,pr=10,pt=10,pb=24,iw=W-pl-pr,ih=H-pt-pb,n=labels.length;
+  const mx=niceMax(Math.max(1,...sets.flatMap(s=>s.v))/4)*4,y=v=>pt+ih-v/mx*ih,x=i=>pl+(n<2?iw/2:i/(n-1)*iw);
+  let g='';for(let i=0;i<=4;i++){const v=mx*i/4,yy=Math.round(y(v))+.5;g+=`<line x1="${pl}" x2="${W-pr}" y1="${yy}" y2="${yy}" stroke="${i?'#E8ECE6':'#C9D1C6'}"/><text x="${pl-8}" y="${yy+4}" text-anchor="end" font-size="10.5" fill="#5B685E">${fmtV?fmtV(v,true):Math.round(v)}</text>`;}
+  const step=Math.ceil(n/(W<520?5:8));let lab='';labels.forEach((l,i)=>{if(i%step===0||i===n-1)lab+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10.5" fill="#5B685E">${esc(l)}</text>`;});
+  const paths=sets.map(s=>{const pts=s.v.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`);return (s.fill?`<path d="M${x(0)},${pt+ih} L${pts.join(' L')} L${x(n-1)},${pt+ih}Z" fill="${s.c}" opacity=".08"/>`:'')+`<polyline points="${pts.join(' ')}" fill="none" stroke="${s.c}" stroke-width="2.2" ${s.dash?'stroke-dasharray="5 4"':''} stroke-linejoin="round" stroke-linecap="round"/>`;}).join('');
+  let hit='';for(let i=0;i<n;i++){const w=n<2?iw:iw/(n-1);hit+=`<rect x="${x(i)-w/2}" y="${pt}" width="${w}" height="${ih}" fill="transparent" data-i="${i}"/>`;}
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}">${g}${paths}${lab}<line class="cur" x1="0" x2="0" y1="${pt}" y2="${pt+ih}" stroke="#9AA79C" stroke-dasharray="3 3" visibility="hidden"/><g class="hits">${hit}</g></svg><div class="tip" hidden></div>`;
+  const tip=el.querySelector('.tip'),cur=el.querySelector('.cur');
+  el.querySelector('.hits').addEventListener('pointermove',e=>{const i=+e.target.dataset.i;if(isNaN(i))return;
+    cur.setAttribute('x1',x(i));cur.setAttribute('x2',x(i));cur.setAttribute('visibility','visible');
+    tip.hidden=false;tip.innerHTML=`${esc(labels[i])}<br>`+sets.map(s=>`<span style="color:${s.c}">●</span> ${esc(s.n)}: <b>${fmtV&&s.money?fmtV(s.v[i]):s.v[i]}</b>`).join('<br>');
+    tip.style.left=Math.max(80,Math.min(W-80,x(i)))+'px';tip.style.top=Math.max(40,Math.min(...sets.map(s=>y(s.v[i])))-8)+'px';});
+  el.querySelector('.hits').addEventListener('pointerleave',()=>{tip.hidden=true;cur.setAttribute('visibility','hidden');});
+}
+const kfmt=(v,short)=>short&&v>=1000?'Rs '+(v>=1e6?(v/1e6).toFixed(1).replace(/\.0$/,'')+'M':(v/1000).toFixed(v>=1e4?0:1).replace(/\.0$/,'')+'k'):fmt(v);
+/* payment math per order: advance asked, advance received, still to collect */
+function payOf(o){const tot=o.total||0,adv=o.advance!=null?o.advance:(o.pay==='cod'?Math.round(tot*(Number(DB.settings.codAdvance??30))/100):tot);
+  const got=o.paid?tot:(o.proof?adv:0);return {tot,adv,got,rem:Math.max(0,tot-got),pendAdv:o.paid||o.proof?0:adv};}
+const STC={pending:'#D9A21B',confirmed:'#3F7FD0',shipped:'#7A5BC7',delivered:'#1D7A2C',cancelled:'#B3261E'};
 /* ================= WEBSITE ANALYTICS (dashboard) ================= */
 const pctx=(a,b)=>b?Math.round(a/b*1000)/10+'%':'0%';
 async function renderAnalytics(days,inR){
@@ -567,10 +607,10 @@ async function renderAnalytics(days,inR){
     <div class="ch"><div><h2>Website analytics</h2><div class="sub">${lbl} · visits, sources, bounce rate, add to cart</div></div></div>
     <div class="an-kpis">
       <div class="kpi"><span>Visitors</span><b>${T.visitors}</b><small>${T.newv} new</small></div>
-      <div class="kpi"><span>Visits</span><b>${T.sessions}</b><small>${T.pv} page loads</small></div>
+      <div class="kpi"><span>Visits</span><b>${T.sessions}</b><small>${T.pv} page loads</small>${spark(S.daily.map(d=>d.sessions),'#3F7FD0')}</div>
       <div class="kpi"><span>Bounce rate</span><b>${pctx(T.bounce,T.sessions)}</b><small>left without doing anything</small></div>
-      <div class="kpi"><span>Add to carts</span><b>${T.atc}</b><small>${T.sAtc} visits · ${pctx(T.sAtc,T.sessions)}</small></div>
-      <div class="kpi"><span>Checkouts started</span><b>${T.ic}</b><small>${T.sIc} visits · WhatsApp clicks ${T.wa}</small></div>
+      <div class="kpi"><span>Add to carts</span><b>${T.atc}</b><small>${T.sAtc} visits · ${pctx(T.sAtc,T.sessions)}</small>${spark(S.daily.map(d=>d.atc))}</div>
+      <div class="kpi"><span>Checkouts started</span><b>${T.ic}</b><small>${T.sIc} visits · WhatsApp clicks ${T.wa}</small>${spark(S.daily.map(d=>d.ic),'#7A5BC7')}</div>
       <div class="kpi"><span>Conversion rate</span><b>${pctx(ordN,T.sessions)}</b><small>${ordN} orders · ${fmt(rev)}</small></div>
     </div>
   </div>
@@ -578,8 +618,8 @@ async function renderAnalytics(days,inR){
     <div class="card stack"><div class="ch"><h2>Sales funnel</h2><span class="sub">${lbl}</span></div>
       <div class="funnel">${fun.map(([l,n],i)=>`<div class="fr"><span>${l}</span><div class="fb"><i style="width:${Math.max(n?2:0,n/fmax*100)}%"></i></div><b>${n} <small>${i?pctx(n,fun[i-1][1])+' of prev':''}</small></b></div>`).join('')}</div>
       <p class="an-note">Abandoned checkouts: <b>${Math.max(0,T.sIc-ordN)}</b> visits started checkout but did not order.</p></div>
-    <div class="card stack"><div class="ch"><h2>Visits & add to cart per day</h2><div class="legend"><span><i style="background:#C9DCC4"></i>Visits</span><span><i style="background:var(--green)"></i>Add to cart</span></div></div>
-      <div class="dbars">${S.daily.map((d,i)=>`<div class="db" title="${esc(d.d)}: ${d.sessions} visits, ${d.atc} add to cart, ${d.orders} orders"><i style="height:${d.sessions/dmax*100}%"></i><i class="a" style="height:${Math.min(d.sessions,d.atc)/dmax*100}%"></i><span>${i%step===0?d.d.slice(5):''}</span></div>`).join('')}</div></div>
+    <div class="card stack"><div class="ch"><h2>Visits & add to cart per day</h2><div class="legend"><span><i style="background:#3F7FD0"></i>Visits</span><span><i style="background:#1D5F26"></i>Add to cart</span><span><i style="background:#A66C12"></i>Orders</span></div></div>
+      <div class="lchart" id="anLine"></div></div>
   </div>
   <div class="card" style="padding-block:0"><div class="ch" style="padding-top:16px"><h2>Traffic by platform</h2><span class="sub">Facebook, Instagram, Google, WhatsApp, Direct…</span></div>
     ${tbl(['Platform','Visits','Bounce','Add to cart','Checkouts','Orders','Revenue'],plats.map(k=>{const r=row(k),o=oP[k]||{n:0,rev:0};return `<tr><td><b>${esc(k)}</b></td><td class="num">${r.sessions}</td><td class="num">${pctx(r.bounce,r.sessions)}</td><td class="num">${r.atc}</td><td class="num">${r.ic}</td><td class="num">${o.n}</td><td class="num">${fmt(o.rev)}</td></tr>`;}))}</div>
@@ -596,6 +636,7 @@ async function renderAnalytics(days,inR){
         <div class="list">${S.by.dev.map(r=>`<div class="it"><div class="grow"><b>${esc(r.k)}</b><small>${r.sessions} visits · bounce ${pctx(r.bounce,r.sessions)} · ${r.atc} add to cart</small></div></div>`).join('')||'<div class="an-note">No data yet.</div>'}</div></div>
     </div>
   </div>`;
+  lineChart($('#anLine'),S.daily.map(d=>new Date(d.d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})),[{n:'Visits',v:S.daily.map(d=>d.sessions),c:'#3F7FD0',fill:true},{n:'Add to cart',v:S.daily.map(d=>d.atc),c:'#1D5F26'},{n:'Orders',v:S.daily.map(d=>d.orders),c:'#A66C12'}]);
 }
 async function pgDashboard(){
   title('Dashboard');
@@ -615,15 +656,35 @@ async function pgDashboard(){
   const low=Number(DB.settings.lowStock)||5;
   const lowList=[];DB.products.forEach(p=>p.variants.forEach(v=>{if(!unlimited(v)&&Number(v.stock)<=low)lowList.push({p,v});}));
   const rangeLbl=days?`last ${days} days`:'all time';
+  const ser=series();
+  let prev=null;if(days){const pf=new Date(from-days*864e5),pv=DB.orders.filter(o=>{const d=new Date(o.at);return d>=pf&&d<from&&o.status!=='cancelled';});const ps=pv.reduce((t,o)=>t+o.total,0);prev={sales:ps,n:pv.length,aov:pv.length?ps/pv.length:0};}
+  const P={tot:0,got:0,rem:0,pendAdv:0},PM={};valid.forEach(o=>{const x=payOf(o);['tot','got','rem','pendAdv'].forEach(k=>P[k]+=x[k]);const m=PM[o.pay]=PM[o.pay]||{n:0,tot:0,got:0,rem:0};m.n++;m.tot+=x.tot;m.got+=x.got;m.rem+=x.rem;});
   $('#page').innerHTML=`
     <div class="spread"><div class="tabs" role="tablist">${[['7','7 days'],['30','30 days'],['all','All time']].map(([k,l])=>`<button class="${ST.range===k?'on':''}" data-act="range" data-v="${k}">${l}</button>`).join('')}</div>
       <button class="btn ghost sm" data-act="refresh">${IC.refresh}Refresh</button></div>
     ${DB.orders.length?'':`<div class="card"><div class="empty"><b>No orders yet</b>When customers order from the store, sales show up here. Want to see how the dashboard looks with data?<br><button class="btn" data-act="addSamples">Add sample orders</button></div></div>`}
     <div class="kpis">
-      <div class="kpi"><span>Total sales</span><b>${fmt(sales)}</b><small>${rangeLbl}, cancelled excluded</small></div>
-      <div class="kpi"><span>Orders</span><b>${valid.length}</b><small>${inR.length-valid.length} cancelled</small></div>
-      <div class="kpi"><span>Average order value</span><b>${fmt(aov)}</b><small>${rangeLbl}</small></div>
+      <div class="kpi"><span>Total sales</span><div class="row1"><b>${fmt(sales)}</b>${chg(sales,prev&&prev.sales)}</div><small>${rangeLbl}, cancelled excluded</small>${spark(ser.map(s=>s.v))}</div>
+      <div class="kpi"><span>Orders</span><div class="row1"><b>${valid.length}</b>${chg(valid.length,prev&&prev.n)}</div><small>${inR.length-valid.length} cancelled</small>${spark(ser.map(s=>s.n),'#3F7FD0')}</div>
+      <div class="kpi"><span>Average order value</span><div class="row1"><b>${fmt(aov)}</b>${chg(aov,prev&&prev.aov)}</div><small>${rangeLbl}</small>${spark(ser.map(s=>s.n?s.v/s.n:0),'#A66C12')}</div>
       <a class="kpi ${pend?'attn':''}" href="#/orders" data-act="otab" data-v="pending"><span>Pending orders</span><b>${pend}</b><small>${pend?'Need confirmation':'All caught up'}</small></a>
+    </div>
+    <div class="g2e">
+      <div class="card stack"><div class="ch"><h2>Orders by status</h2><span class="sub">${rangeLbl}</span></div>
+        <div class="stbar">${['pending','confirmed','shipped','delivered','cancelled'].map(k=>{const n=inR.filter(o=>o.status===k).length;return n?`<i style="width:${n/inR.length*100}%;background:${STC[k]}" title="${STN[k]}: ${n}"></i>`:'';}).join('')}</div>
+        <div>${['pending','confirmed','shipped','delivered','cancelled'].map(k=>{const L=inR.filter(o=>o.status===k);return `<button class="strow" data-act="otab" data-v="${k}"><span class="dot" style="background:${STC[k]}"></span><span>${STN[k]}</span><b>${L.length}</b><small>${fmt(L.reduce((s,o)=>s+o.total,0))}</small></button>`;}).join('')}</div></div>
+      <div class="card stack"><div class="ch"><h2>Payments &amp; advance</h2><span class="sub">${rangeLbl}, cancelled excluded</span></div>
+        <div class="paygrid">
+          <div><span>Order value</span><b>${fmt(P.tot)}</b></div>
+          <div class="g"><span>Received (advance + paid)</span><b>${fmt(P.got)}</b></div>
+          <div class="r"><span>Remaining to collect</span><b>${fmt(P.rem)}</b></div>
+          <div class="o"><span>Advance not received yet</span><b>${fmt(P.pendAdv)}</b></div>
+        </div>
+        <div class="stbar" title="Received vs remaining"><i style="width:${P.tot?P.got/P.tot*100:0}%;background:#1D7A2C"></i><i style="width:${P.tot?P.rem/P.tot*100:0}%;background:#E9B8B4"></i></div>
+        <div class="tw"><table class="tbl"><thead><tr><th>Method</th><th class="num">Orders</th><th class="num">Value</th><th class="num">Received</th><th class="num">Remaining</th></tr></thead><tbody>
+        ${Object.entries(PM).map(([k,m])=>`<tr><td><b>${esc(PAYN[k]||k)}</b></td><td class="num">${m.n}</td><td class="num">${fmt(m.tot)}</td><td class="num">${fmt(m.got)}</td><td class="num">${fmt(m.rem)}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">No orders in this period</td></tr>'}
+        </tbody></table></div>
+        <p class="an-note">"Received" = advance with screenshot, or orders marked Paid. Mark orders Paid after delivery so remaining stays correct.</p></div>
     </div>
     <div id="anBox"></div>
     <div class="card"><div class="ch"><div><h2>Sales ${days?'per day':'per month'}</h2><div class="sub">${rangeLbl}${hasSample?' · includes sample orders':''}</div></div></div>
@@ -658,6 +719,8 @@ function series(){
 function niceMax(m){if(m<=0)return 250;const p=10**Math.floor(Math.log10(m)),f=m/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;}
 function drawChart(){
   const el=$('#chart');if(!el)return;
+  if(true){const S=series();lineChart(el,S.map(s=>s.label),[{n:'Sales',v:S.map(s=>s.v),c:'#1D5F26',fill:true,money:true}],kfmt);
+    if(S.every(s=>!s.v))el.insertAdjacentHTML('beforeend','<div class="none">No sales in this period</div>');return;}
   const S=series(),W=el.clientWidth,H=el.clientHeight,pl=54,pr=8,pt=12,pb=26,iw=W-pl-pr,ih=H-pt-pb;
   const stepV=niceMax(Math.max(...S.map(s=>s.v))/4),max=stepV*4,band=iw/S.length,bw=Math.max(3,Math.min(26,band-2));
   const y=v=>pt+ih-v/max*ih;
@@ -697,7 +760,7 @@ function sampleOrders(){
     const at=new Date(Date.now()-Math.floor(Math.random()*29)*864e5-Math.floor(Math.random()*36e6));
     const status=k<2?'pending':st[Math.floor(Math.random()*st.length)];
     const name=names[k%names.length];
-    out.push({id:'S-'+(seq+k),sample:true,at:at.toISOString(),customer:{name,phone:'03'+String(Math.floor(100000000+Math.random()*899999999)),city:cities[k%cities.length],addr:'House '+(10+k)+', Street '+(k%7+1)+', Sample Town',notes:''},items,sub,ship,total:sub+ship,pay:pays[k%pays.length]||'cod',status,paid:status==='delivered',note:''});
+    out.push({id:'S-'+(seq+k),sample:true,at:at.toISOString(),customer:{name,phone:'03'+String(Math.floor(100000000+Math.random()*899999999)),city:cities[k%cities.length],addr:'House '+(10+k)+', Street '+(k%7+1)+', Sample Town',notes:''},items,sub,ship,total:sub+ship,pay:pays[k%pays.length]||'cod',status,paid:status==='delivered',proof:(pays[k%pays.length]||'cod')!=='cod'||k%2===0,advance:(pays[k%pays.length]||'cod')==='cod'?Math.round((sub+ship)*.3):sub+ship,note:''});
   }
   return out;
 }
