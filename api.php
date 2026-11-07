@@ -169,6 +169,11 @@ function patch_contact() {
             kv_set('products', $seed['products']); $st3['cat16'] = 1; kv_set('settings', $st3);
         }
     }
+    // one time (owner forgot the admin password, 7 Nov 2026): clear it so the next login must set a new one
+    $st4 = kv_get('settings');
+    if (is_array($st4) && empty($st4['pwreset1'])) {
+        kv_set('admin', []); $st4['pwreset1'] = 1; kv_set('settings', $st4);
+    }
     // sharp phone hero: text-free photo + headline as real text
     $bs = kv_get('banners');
     if (is_array($bs)) foreach ($bs as $i => $b) if (($b['id'] ?? '') === 'b0' && ($b['fullMobile'] ?? '') === 'assets/img/banner-main-mobile.jpg') {
