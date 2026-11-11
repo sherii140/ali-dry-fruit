@@ -284,12 +284,14 @@ function an_stats($days) {
     $tot = ['sessions' => 0, 'visitors' => 0, 'newv' => 0, 'bounce' => 0, 'pv' => 0, 'view' => 0, 'atc' => 0, 'ic' => 0, 'wa' => 0, 'orders' => 0, 'rev' => 0,
             'sAtc' => 0, 'sIc' => 0, 'sView' => 0];
     $vis = []; $by = ['p' => [], 'cmp' => [], 'dev' => []]; $daily = []; $atc = []; $view = [];
+    $hr = []; for ($h = 0; $h < 24; $h++) $hr[$h] = ['h' => $h, 'sessions' => 0, 'atc' => 0, 'orders' => 0];
     for ($i = $days - 1; $i >= 0; $i--) {
         $day = gmdate('Y-m-d', time() + 5 * 3600 - $i * 86400);
         $f = AN_DIR . '/' . $day . '.json';
         $d = is_file($f) ? (json_decode((string)@file_get_contents($f), true) ?: []) : [];
         $row = ['d' => $day, 'sessions' => 0, 'atc' => 0, 'ic' => 0, 'orders' => 0];
         foreach (($d['s'] ?? []) as $s) {
+            if ($days === 1) { $hh = (int)gmdate('G', (int)$s['t'] + 5 * 3600); $hr[$hh]['sessions']++; $hr[$hh]['atc'] += (int)$s['atc']; $hr[$hh]['orders'] += (int)$s['o']; }
             $bounce = (int)$s['eng'] === 0 && (int)$s['view'] === 0 && (int)$s['atc'] === 0 && (int)$s['ic'] === 0 && (int)$s['wa'] === 0 && (int)$s['o'] === 0 && (int)$s['pv'] <= 1;
             $tot['sessions']++; $row['sessions']++;
             if ($bounce) $tot['bounce']++;
@@ -317,7 +319,7 @@ function an_stats($days) {
     $tot['visitors'] = count($vis);
     foreach ($by as $g => $list) { $l = array_values($list); usort($l, function ($a, $b) { return $b['sessions'] - $a['sessions']; }); $by[$g] = array_slice($l, 0, 30); }
     arsort($atc); arsort($view);
-    return ['days' => $days, 'tot' => $tot, 'by' => $by, 'daily' => $daily, 'atc' => array_slice($atc, 0, 15, true), 'view' => array_slice($view, 0, 15, true)];
+    return ['days' => $days, 'hourly' => $days === 1 ? array_values($hr) : null, 'tot' => $tot, 'by' => $by, 'daily' => $daily, 'atc' => array_slice($atc, 0, 15, true), 'view' => array_slice($view, 0, 15, true)];
 }
 
 /* ---------------- admin session ---------------- */

@@ -576,14 +576,16 @@ function payOf(o){const tot=o.total||0,adv=o.advance!=null?o.advance:(o.pay==='c
 const STC={pending:'#D9A21B',confirmed:'#3F7FD0',shipped:'#7A5BC7',delivered:'#1D7A2C',cancelled:'#B3261E'};
 /* ================= WEBSITE ANALYTICS (dashboard) ================= */
 const pctx=(a,b)=>b?Math.round(a/b*1000)/10+'%':'0%';
+let anTok=0;
 async function renderAnalytics(days,inR){
-  const box=$('#anBox');if(!box)return;
+  const tok=++anTok;const box=$('#anBox');if(!box)return;
   if(ADF.mode()!=='server'){box.innerHTML='';return;}
   box.innerHTML='<div class="card"><div class="an-note">Loading website analytics…</div></div>';
   let S;try{S=await ADF.stats(days);}catch(e){box.innerHTML=`<div class="card"><div class="an-note">Analytics could not load: ${esc(e.message)}</div></div>`;return;}
-  if(!$('#anBox'))return;
+  if(tok!==anTok||!$('#anBox'))return;
+  const LS=S.days===1&&S.hourly?S.hourly:S.daily;
   const from=new Date(new Date().setHours(0,0,0,0)-(S.days-1)*864e5);
-  const T=S.tot,valid=DB.orders.filter(o=>o.status!=='cancelled'&&!o.sample&&new Date(o.at)>=from),lbl=`last ${S.days} days`;
+  const T=S.tot,valid=DB.orders.filter(o=>o.status!=='cancelled'&&!o.sample&&new Date(o.at)>=from),lbl=S.days===1?'today':`last ${S.days} days`;
   const ordN=valid.length,rev=valid.reduce((s,o)=>s+o.total,0);
   // orders by platform / campaign / city from the orders themselves
   const grp=(f)=>{const m={};valid.forEach(o=>{const k=f(o);if(!k)return;m[k]=m[k]||{n:0,rev:0};m[k].n++;m[k].rev+=o.total;});return m;};
@@ -607,10 +609,10 @@ async function renderAnalytics(days,inR){
     <div class="ch"><div><h2>Website analytics</h2><div class="sub">${lbl} · visits, sources, bounce rate, add to cart</div></div></div>
     <div class="an-kpis">
       <div class="kpi"><span>Visitors</span><b>${T.visitors}</b><small>${T.newv} new</small></div>
-      <div class="kpi"><span>Visits</span><b>${T.sessions}</b><small>${T.pv} page loads</small>${spark(S.daily.map(d=>d.sessions),'#3F7FD0')}</div>
+      <div class="kpi"><span>Visits</span><b>${T.sessions}</b><small>${T.pv} page loads</small>${spark(LS.map(d=>d.sessions),'#3F7FD0')}</div>
       <div class="kpi"><span>Bounce rate</span><b>${pctx(T.bounce,T.sessions)}</b><small>left without doing anything</small></div>
-      <div class="kpi"><span>Add to carts</span><b>${T.atc}</b><small>${T.sAtc} visits · ${pctx(T.sAtc,T.sessions)}</small>${spark(S.daily.map(d=>d.atc))}</div>
-      <div class="kpi"><span>Checkouts started</span><b>${T.ic}</b><small>${T.sIc} visits · WhatsApp clicks ${T.wa}</small>${spark(S.daily.map(d=>d.ic),'#7A5BC7')}</div>
+      <div class="kpi"><span>Add to carts</span><b>${T.atc}</b><small>${T.sAtc} visits · ${pctx(T.sAtc,T.sessions)}</small>${spark(LS.map(d=>d.atc))}</div>
+      <div class="kpi"><span>Checkouts started</span><b>${T.ic}</b><small>${T.sIc} visits · WhatsApp clicks ${T.wa}</small>${spark(LS.map(d=>d.ic),'#7A5BC7')}</div>
       <div class="kpi"><span>Conversion rate</span><b>${pctx(ordN,T.sessions)}</b><small>${ordN} orders · ${fmt(rev)}</small></div>
     </div>
   </div>
@@ -618,7 +620,7 @@ async function renderAnalytics(days,inR){
     <div class="card stack"><div class="ch"><h2>Sales funnel</h2><span class="sub">${lbl}</span></div>
       <div class="funnel">${fun.map(([l,n],i)=>`<div class="fr"><span>${l}</span><div class="fb"><i style="width:${Math.max(n?2:0,n/fmax*100)}%"></i></div><b>${n} <small>${i?pctx(n,fun[i-1][1])+' of prev':''}</small></b></div>`).join('')}</div>
       <p class="an-note">Abandoned checkouts: <b>${Math.max(0,T.sIc-ordN)}</b> visits started checkout but did not order.</p></div>
-    <div class="card stack"><div class="ch"><h2>Visits & add to cart per day</h2><div class="legend"><span><i style="background:#3F7FD0"></i>Visits</span><span><i style="background:#1D5F26"></i>Add to cart</span><span><i style="background:#A66C12"></i>Orders</span></div></div>
+    <div class="card stack"><div class="ch"><h2>Visits & add to cart ${S.days===1?'per hour':'per day'}</h2><div class="legend"><span><i style="background:#3F7FD0"></i>Visits</span><span><i style="background:#1D5F26"></i>Add to cart</span><span><i style="background:#A66C12"></i>Orders</span></div></div>
       <div class="lchart" id="anLine"></div></div>
   </div>
   <div class="card" style="padding-block:0"><div class="ch" style="padding-top:16px"><h2>Traffic by platform</h2><span class="sub">Facebook, Instagram, Google, WhatsApp, Direct…</span></div>
@@ -636,12 +638,12 @@ async function renderAnalytics(days,inR){
         <div class="list">${S.by.dev.map(r=>`<div class="it"><div class="grow"><b>${esc(r.k)}</b><small>${r.sessions} visits · bounce ${pctx(r.bounce,r.sessions)} · ${r.atc} add to cart</small></div></div>`).join('')||'<div class="an-note">No data yet.</div>'}</div></div>
     </div>
   </div>`;
-  lineChart($('#anLine'),S.daily.map(d=>new Date(d.d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})),[{n:'Visits',v:S.daily.map(d=>d.sessions),c:'#3F7FD0',fill:true},{n:'Add to cart',v:S.daily.map(d=>d.atc),c:'#1D5F26'},{n:'Orders',v:S.daily.map(d=>d.orders),c:'#A66C12'}]);
+  lineChart($('#anLine'),LS.map(d=>d.h!=null?((d.h%12||12)+(d.h<12?'am':'pm')):new Date(d.d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})),[{n:'Visits',v:LS.map(d=>d.sessions),c:'#3F7FD0',fill:true},{n:'Add to cart',v:LS.map(d=>d.atc),c:'#1D5F26'},{n:'Orders',v:LS.map(d=>d.orders),c:'#A66C12'}]);
 }
 async function pgDashboard(){
   title('Dashboard');
   try{await reload();renderNav('dashboard');}catch(e){}
-  const now=Date.now(),days=ST.range==='7'?7:ST.range==='30'?30:null;
+  const now=Date.now(),days=ST.range==='today'?1:ST.range==='7'?7:ST.range==='30'?30:null;
   const from=days?new Date(new Date().setHours(0,0,0,0)-(days-1)*864e5):new Date(0);
   const inR=DB.orders.filter(o=>new Date(o.at)>=from);
   const valid=inR.filter(o=>o.status!=='cancelled');
@@ -655,12 +657,12 @@ async function pgDashboard(){
   const maxRev=top.length?top[0][1].rev:1;
   const low=Number(DB.settings.lowStock)||5;
   const lowList=[];DB.products.forEach(p=>p.variants.forEach(v=>{if(!unlimited(v)&&Number(v.stock)<=low)lowList.push({p,v});}));
-  const rangeLbl=days?`last ${days} days`:'all time';
+  const rangeLbl=days===1?'today':days?`last ${days} days`:'all time';
   const ser=series();
   let prev=null;if(days){const pf=new Date(from-days*864e5),pv=DB.orders.filter(o=>{const d=new Date(o.at);return d>=pf&&d<from&&o.status!=='cancelled';});const ps=pv.reduce((t,o)=>t+o.total,0);prev={sales:ps,n:pv.length,aov:pv.length?ps/pv.length:0};}
   const P={tot:0,got:0,rem:0,pendAdv:0},PM={};valid.forEach(o=>{const x=payOf(o);['tot','got','rem','pendAdv'].forEach(k=>P[k]+=x[k]);const m=PM[o.pay]=PM[o.pay]||{n:0,tot:0,got:0,rem:0};m.n++;m.tot+=x.tot;m.got+=x.got;m.rem+=x.rem;});
   $('#page').innerHTML=`
-    <div class="spread"><div class="tabs" role="tablist">${[['7','7 days'],['30','30 days'],['all','All time']].map(([k,l])=>`<button class="${ST.range===k?'on':''}" data-act="range" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="spread"><div class="tabs" role="tablist">${[['today','Today'],['7','7 days'],['30','30 days'],['all','All time']].map(([k,l])=>`<button class="${ST.range===k?'on':''}" data-act="range" data-v="${k}">${l}</button>`).join('')}</div>
       <button class="btn ghost sm" data-act="refresh">${IC.refresh}Refresh</button></div>
     ${DB.orders.length?'':`<div class="card"><div class="empty"><b>No orders yet</b>When customers order from the store, sales show up here. Want to see how the dashboard looks with data?<br><button class="btn" data-act="addSamples">Add sample orders</button></div></div>`}
     <div class="kpis">
@@ -687,7 +689,7 @@ async function pgDashboard(){
         <p class="an-note">"Received" = advance with screenshot, or orders marked Paid. Mark orders Paid after delivery so remaining stays correct.</p></div>
     </div>
     <div id="anBox"></div>
-    <div class="card"><div class="ch"><div><h2>Sales ${days?'per day':'per month'}</h2><div class="sub">${rangeLbl}${hasSample?' · includes sample orders':''}</div></div></div>
+    <div class="card"><div class="ch"><div><h2>Sales ${days===1?'per hour (today)':days?'per day':'per month'}</h2><div class="sub">${rangeLbl}${hasSample?' · includes sample orders':''}</div></div></div>
       <div class="chart" id="chart" aria-label="Sales chart"></div></div>
     <div class="g2e">
       <div class="card"><div class="ch"><h2>Recent orders</h2><a class="lnk" href="#/orders">View all</a></div>
@@ -709,6 +711,12 @@ function series(){
     const out=[],d=new Date();d.setDate(1);d.setHours(0,0,0,0);
     for(let i=11;i>=0;i--){const m=new Date(d.getFullYear(),d.getMonth()-i,1);out.push({k:m.getFullYear()+'-'+m.getMonth(),label:m.toLocaleDateString('en-GB',{month:'short'}),full:m.toLocaleDateString('en-GB',{month:'long',year:'numeric'}),v:0,n:0});}
     valid.forEach(o=>{const t=new Date(o.at),k=t.getFullYear()+'-'+t.getMonth(),s=out.find(x=>x.k===k);if(s){s.v+=o.total;s.n++;}});
+    return out;
+  }
+  if(ST.range==='today'){
+    const out=[],t0=new Date();t0.setHours(0,0,0,0);
+    for(let h=0;h<24;h++){const lb=(h%12||12)+(h<12?'am':'pm');out.push({k:h,label:lb,full:'Today '+lb,v:0,n:0});}
+    valid.forEach(o=>{const d=new Date(o.at);if(d>=t0){const s=out[d.getHours()];s.v+=o.total;s.n++;}});
     return out;
   }
   const days=ST.range==='7'?7:30,out=[],today=new Date();today.setHours(0,0,0,0);
