@@ -191,6 +191,7 @@ h1,h2,h3{text-wrap:balance}
 .pill.sample::before{display:none}
 
 /* Chart */
+.spill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff);border:1px solid color-mix(in srgb,var(--c) 28%,#fff);border-radius:999px;padding:3px 9px;white-space:nowrap}.spill i{width:7px;height:7px;border-radius:50%;background:var(--c)}
 .kpi .sp{display:block;width:100%;height:38px;margin-top:8px}
 .kpi .chg{font-size:11.5px;font-weight:600;margin-left:6px}.kpi .chg.up{color:#1D7A2C}.kpi .chg.dn{color:#B3261E}
 .kpi .row1{display:flex;align-items:baseline;flex-wrap:wrap}
@@ -467,7 +468,16 @@ const num=v=>v===''||v===null||v===undefined?null:Number(v);
 const unlimited=v=>v.stock===null||v.stock===''||v.stock===undefined;
 const dkey=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
 const dshort=d=>new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-const dlong=d=>new Date(d).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'});
+const dtime=d=>new Date(d).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+/* where the order came from: platform + paid ad / organic */
+const SRCC={Facebook:'#1877F2',Instagram:'#C13584',Google:'#EA4335',WhatsApp:'#1DA851',TikTok:'#111',YouTube:'#E62117',Direct:'#6B7A6E'};
+function srcInfo(o){const s=o.src;if(!s||!s.p)return null;const m=String(s.med||'').toLowerCase();
+  const paid=/paid|cpc|ppc|ads?$|^ad|sponsored|boost/.test(m);
+  const kind=s.p==='Direct'?'Direct':paid?'Ad':/referral/.test(m)?'Link':'Organic';
+  return {p:s.p,kind,cmp:s.cmp||'',dev:s.dev||'',c:SRCC[s.p]||'#7A5BC7'};}
+function srcPill(o,full){const i=srcInfo(o);if(!i)return '<span class="small muted">—</span>';
+  return `<span class="spill" style="--c:${i.c}"><i></i>${esc(i.p)}${i.p==='Direct'?'':` · ${i.kind}`}</span>${full&&i.cmp?`<div class="small muted">Campaign: ${esc(i.cmp)}</div>`:''}`;}
+const dlong=d=>new Date(d).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
 const slug=s=>String(s).toLowerCase().replace(/\(.*?\)/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'item';
 const STATUS=['pending','confirmed','shipped','delivered','cancelled'];
 const STN={pending:'Pending',confirmed:'Confirmed',shipped:'Shipped',delivered:'Delivered',cancelled:'Cancelled'};
@@ -738,7 +748,7 @@ async function pgDashboard(){
       <div class="chart" id="chart" aria-label="Sales chart"></div></div>
     <div class="g2e">
       <div class="card"><div class="ch"><h2>Recent orders</h2><a class="lnk" href="#/orders">View all</a></div>
-        <div class="list">${orders().slice(0,6).map(o=>`<button class="it" data-act="openOrder" data-id="${esc(o.id)}"><div class="grow"><b>${esc(o.id)} · ${esc(o.customer.name)}</b><small>${dshort(o.at)} · ${esc(o.customer.city)} · ${fmt(o.total)}</small></div><span class="pill ${o.status}">${STN[o.status]}</span></button>`).join('')||'<p class="muted small">No orders yet.</p>'}</div></div>
+        <div class="list">${orders().slice(0,6).map(o=>`<button class="it" data-act="openOrder" data-id="${esc(o.id)}"><div class="grow"><b>${esc(o.id)} · ${esc(o.customer.name)}</b><small>${dshort(o.at)}, ${dtime(o.at)} · ${esc(o.customer.city)} · ${fmt(o.total)}</small><div style="margin-top:4px">${srcPill(o)}</div></div><span class="pill ${o.status}">${STN[o.status]}</span></button>`).join('')||'<p class="muted small">No orders yet.</p>'}</div></div>
       <div class="col">
         <div class="card"><div class="ch"><h2>Top products</h2><span class="sub">${rangeLbl}</span></div>
           <div class="list">${top.map(([id,t])=>`<div class="it">${thumb(prodById(id)||{images:[t.img]})}<div class="grow"><b>${esc(t.name)}</b><small>${t.qty} sold · ${fmt(t.rev)}</small><div class="bar"><i style="width:${Math.max(4,t.rev/maxRev*100)}%"></i></div></div></div>`).join('')||'<p class="muted small">No sales in this period.</p>'}</div></div>
@@ -813,7 +823,7 @@ function sampleOrders(){
     const at=new Date(Date.now()-Math.floor(Math.random()*29)*864e5-Math.floor(Math.random()*36e6));
     const status=k<2?'pending':st[Math.floor(Math.random()*st.length)];
     const name=names[k%names.length];
-    out.push({id:'S-'+(seq+k),sample:true,at:at.toISOString(),customer:{name,phone:'03'+String(Math.floor(100000000+Math.random()*899999999)),city:cities[k%cities.length],addr:'House '+(10+k)+', Street '+(k%7+1)+', Sample Town',notes:''},items,sub,ship,total:sub+ship,pay:pays[k%pays.length]||'cod',status,paid:status==='delivered',proof:(pays[k%pays.length]||'cod')!=='cod'||k%2===0,advance:(pays[k%pays.length]||'cod')==='cod'?Math.round((sub+ship)*.3):sub+ship,note:''});
+    out.push({id:'S-'+(seq+k),sample:true,at:at.toISOString(),customer:{name,phone:'03'+String(Math.floor(100000000+Math.random()*899999999)),city:cities[k%cities.length],addr:'House '+(10+k)+', Street '+(k%7+1)+', Sample Town',notes:''},items,sub,ship,total:sub+ship,pay:pays[k%pays.length]||'cod',status,paid:status==='delivered',proof:(pays[k%pays.length]||'cod')!=='cod'||k%2===0,src:[{p:'Instagram',med:'paid',cmp:'story_nov'},{p:'Facebook',med:'paid',cmp:'dates_nov'},{p:'Instagram',med:'social'},{p:'Google',med:'organic'},{p:'Direct',med:''},{p:'WhatsApp',med:'referral'}][k%6],advance:(pays[k%pays.length]||'cod')==='cod'?Math.round((sub+ship)*.3):sub+ship,note:''});
   }
   return out;
 }
@@ -838,10 +848,11 @@ function renderOrderTable(){
   let a=orders();
   if(ST.otab!=='all')a=a.filter(o=>o.status===ST.otab);
   if(ST.oq){const q=ST.oq.toLowerCase().replace(/[\s-]/g,'');a=a.filter(o=>(o.id+o.customer.name+o.customer.phone+o.customer.city).toLowerCase().replace(/[\s-]/g,'').includes(q));}
-  $('#otable').innerHTML=a.length?`<table class="tbl r"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Items</th><th class="num">Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>
+  $('#otable').innerHTML=a.length?`<table class="tbl r"><thead><tr><th>Order</th><th>Date &amp; time</th><th>Source</th><th>Phone</th><th>Items</th><th class="num">Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>
     ${a.map(o=>`<tr class="click" data-act="openOrder" data-id="${esc(o.id)}">
       <td class="lead"><b>${esc(o.id)}</b> ${o.sample?'<span class="pill sample">Sample</span>':''}<div class="small muted">${esc(o.customer.name)} · ${esc(o.customer.city)}</div></td>
-      <td data-l="Date">${dshort(o.at)}</td>
+      <td data-l="Date">${dshort(o.at)}<div class="small muted">${dtime(o.at)}</div></td>
+      <td data-l="Source">${srcPill(o)}</td>
       <td data-l="Phone">${esc(o.customer.phone)}</td>
       <td data-l="Items">${o.items.reduce((t,i)=>t+i.qty,0)}</td>
       <td class="num" data-l="Total"><b>${fmt(o.total)}</b></td>
@@ -868,6 +879,7 @@ function openOrder(id){
       ${o.items.map(i=>`<div class="oi">${thumb(prodById(i.pid)||{images:[i.image]})}<div class="grow"><b>${esc(i.name)}</b><div class="small muted">${esc(i.w)} · ${fmt(i.price)} × ${i.qty}</div></div><b class="num">${fmt(i.price*i.qty)}</b></div>`).join('')}
       <div style="margin-top:10px"><div class="tot"><span>Subtotal</span><span>${fmt(o.sub)}</span></div><div class="tot"><span>Delivery</span><span>${o.ship?fmt(o.ship):'Free'}</span></div><div class="tot t"><span>Total</span><span>${fmt(o.total)}</span></div>
       <div class="tot"><span>Payment method</span><span>${PAYN[o.pay]||esc(o.pay)}</span></div>
+      <div class="tot"><span>Order came from</span><span style="text-align:right">${srcPill(o,true)}${srcInfo(o)&&srcInfo(o).dev?`<div class="small muted">${esc(srcInfo(o).dev)}</div>`:''}</span></div>
       ${o.advance!==undefined&&o.pay==='cod'&&o.advance>0?`<div class="tot"><span>Advance${o.proof?' (screenshot uploaded)':' (not paid yet: call customer)'}</span><span>${fmt(o.advance)}</span></div><div class="tot"><span>Collect on delivery</span><span>${fmt(o.total-o.advance)}</span></div>`:''}</div></div>
     ${o.proof?`<div class="card"><div class="ch"><h2>Payment screenshot</h2><a class="lnk" href="${esc(ADF.proofSrc(o))}" target="_blank" rel="noopener">Open full size</a></div><a href="${esc(ADF.proofSrc(o))}" target="_blank" rel="noopener"><img src="${esc(ADF.proofSrc(o))}" alt="Payment screenshot for ${esc(o.id)}" style="display:block;max-width:100%;max-height:420px;border-radius:8px;border:1px solid var(--line);margin:0 auto"></a><p class="hint" style="margin-top:8px">Check the amount in your account, then tick “Marked as paid”.</p></div>`:o.pay&&!o.sample?`<div class="card"><p class="small muted">No payment screenshot with this order.</p></div>`:''}
     <div class="card"><div class="f"><label for="oNote">Internal note</label><textarea class="ta" id="oNote" rows="3" placeholder="Only you can see this. Example: courier tracking number">${esc(o.note||'')}</textarea></div></div>
