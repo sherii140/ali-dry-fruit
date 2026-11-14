@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ali Dry Fruit</title>
+<meta name="google-site-verification" content="IT9PHyXShksVPPAS6C6_cInW5CXFsxZ7vqPgKwjPlEc" />
 <meta name="facebook-domain-verification" content="cy5beh90uuqjb2z1veua9bpnh5xl4v" />
 <meta name="description" content="Premium dry fruits, nuts, dates and gift boxes. Delivery all over Pakistan.">
 <link rel="icon" type="image/png" href="assets/img/fav.png">
@@ -874,9 +875,11 @@ function renderChrome(){
   const ic={phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',pin:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'};
   ic.wa='<path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.2A8.5 8.5 0 1 1 21 12Z"/>';
   const tel=v=>'tel:'+String(v).replace(/[^\d+]/g,''),waD=String(s.whatsapp||'').replace(/\D/g,''),waNum=!waD?'':waD.length===12&&waD.startsWith('92')?`+92 ${waD.slice(2,5)} ${waD.slice(5)}`:'+'+waD;
-  const href={phone:s.phone&&tel(s.phone),wa:s.whatsapp&&waLink('Hi '+(s.storeName||'Ali Dry Fruit')+', I would like to place an order.'),mail:s.email&&'mailto:'+s.email};
-  const lbl={phone:'Call: ',wa:'WhatsApp: '};
-  $('#fContact').innerHTML=[['phone',s.phone],['wa',waNum],['mail',s.email],['pin',s.address],['clock',s.hours]].filter(x=>x[1]).map(([k,v])=>{const inner=`<svg viewBox="0 0 24 24">${ic[k]}</svg><span>${lbl[k]||''}${esc(v)}</span>`;return `<li>${href[k]?`<a href="${esc(href[k])}"${k==='wa'?' target="_blank" rel="noopener"':''}>${inner}</a>`:inner}</li>`;}).join('');
+  const map=a=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('Ali Dry Fruit '+a);
+  const href={phone:s.phone&&tel(s.phone),wa:s.whatsapp&&waLink('Hi '+(s.storeName||'Ali Dry Fruit')+', I would like to place an order.'),mail:s.email&&'mailto:'+s.email,pin:s.address&&map(s.address),pin2:s.address2&&map(s.address2)};
+  ic.pin2=ic.pin;
+  const lbl={phone:'Call: ',wa:'WhatsApp: ',pin:s.address2?'Shop 1: ':'',pin2:'Shop 2: '};
+  $('#fContact').innerHTML=[['phone',s.phone],['wa',waNum],['mail',s.email],['pin',s.address],['pin2',s.address2],['clock',s.hours]].filter(x=>x[1]).map(([k,v])=>{const inner=`<svg viewBox="0 0 24 24">${ic[k]}</svg><span>${lbl[k]||''}${esc(v)}</span>`;return `<li>${href[k]?`<a href="${esc(href[k])}"${k==='wa'||k==='pin'||k==='pin2'?' target="_blank" rel="noopener"':''}>${inner}</a>`:inner}</li>`;}).join('');
   $('#fLinks').innerHTML=`<li><button data-cat="all">Shop All</button></li>`+tops().slice(0,9).map(c=>`<li><button data-cat="${esc(c.id)}">${esc(c.name)}</button></li>`).join('');
   $('#fPay').innerHTML=ADF.payMethods(s).map(k=>`<span>${PAYN[k]}</span>`).join('');
   const fee=Number(s.deliveryFee)||0,free=Number(s.freeOver)||0;
@@ -975,7 +978,7 @@ function renderStory(){
   if(!all.length){el.innerHTML='';return;}
   el.innerHTML=`<div class="wrap"><div class="smosaic">${pick.map(p=>`<img src="${src(p.images[0])}" alt="${esc(p.name)}" loading="lazy">`).join('')}<div class="sseal"><div><b>100%</b>PURE &amp;<br>FRESH</div></div></div>
   <div class="stext"><span class="kick">The Ali Dry Fruit promise</span><h2 id="storyH">Pure, hand-sorted and honestly priced</h2>
-  <p>Every order is packed at our shop${s.address?' at '+esc(s.address):' in Lahore'}. We choose the stock ourselves, sort out broken and dull pieces by hand, and pack it fresh before it ships.</p>
+  <p>Every order is packed at our ${s.address2?'two shops in Lahore':'shop'+(s.address?' at '+esc(s.address):' in Lahore')}. We choose the stock ourselves, sort out broken and dull pieces by hand, and pack it fresh before it ships.</p>
   <ol class="steps"><li><i>01</i><div><b>Hand-picked stock</b><small>Dates, nuts and dried fruit chosen for size, colour and taste.</small></div></li>
   <li><i>02</i><div><b>Sorted &amp; weighed</b><small>Broken and dull pieces are removed. You get the full weight you pay for.</small></div></li>
   <li><i>03</i><div><b>Sealed fresh, delivered fast</b><small>Packed in sealed pouches and sent anywhere in Pakistan.</small></div></li></ol>

@@ -169,6 +169,12 @@ function patch_contact() {
             kv_set('products', $seed['products']); $st3['cat16'] = 1; kv_set('settings', $st3);
         }
     }
+    // one time: second shop (Hussain Chowk, Gulberg III)
+    $st5 = kv_get('settings');
+    if (is_array($st5) && empty($st5['addr2v1'])) {
+        if (empty($st5['address2'])) $st5['address2'] = 'Shop No. 3A, 58-B3, Hussain Chowk, Gulberg III, Lahore';
+        $st5['addr2v1'] = 1; kv_set('settings', $st5);
+    }
     // one time (owner forgot the admin password, 7 Nov 2026): clear it so the next login must set a new one
     $st4 = kv_get('settings');
     if (is_array($st4) && empty($st4['pwreset1'])) {

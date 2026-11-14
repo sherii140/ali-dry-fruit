@@ -1308,7 +1308,8 @@ async function pgSettings(){
             <div class="f"><label for="sPhone">Phone (shown in footer)</label><input class="in" id="sPhone" value="${esc(s.phone)}"></div>
             <div class="f"><label for="sEmail">Email</label><input class="in" id="sEmail" value="${esc(s.email)}"></div>
             <div class="f"><label for="sHours">Business hours</label><input class="in" id="sHours" value="${esc(s.hours)}"></div>
-            <div class="f full"><label for="sAddr">Address</label><input class="in" id="sAddr" value="${esc(s.address)}"></div>
+            <div class="f full"><label for="sAddr">Address (shop 1)</label><input class="in" id="sAddr" value="${esc(s.address)}"></div>
+            <div class="f full"><label for="sAddr2">Address (shop 2)</label><input class="in" id="sAddr2" value="${esc(s.address2||'')}" placeholder="Leave empty if you have one shop"></div>
             <div class="f"><label for="sFb">Facebook link</label><input class="in" id="sFb" value="${esc(s.facebook)}" placeholder="https://facebook.com/…"></div>
             <div class="f"><label for="sIg">Instagram link</label><input class="in" id="sIg" value="${esc(s.instagram)}" placeholder="https://instagram.com/…"></div>
           </div></div>
@@ -1354,7 +1355,7 @@ async function saveSettings(btn){
   if(wa&&!/^92\d{10}$/.test(wa))return toast('WhatsApp number should look like 923001234567.',true);
   await guard(async()=>{
     await reload();const s=DB.settings;
-    Object.assign(s,{storeName:$('#sName').value.trim()||'Ali Dry Fruit',whatsapp:wa,phone:$('#sPhone').value.trim(),email:$('#sEmail').value.trim(),hours:$('#sHours').value.trim(),address:$('#sAddr').value.trim(),facebook:$('#sFb').value.trim(),instagram:$('#sIg').value.trim(),
+    Object.assign(s,{storeName:$('#sName').value.trim()||'Ali Dry Fruit',whatsapp:wa,phone:$('#sPhone').value.trim(),email:$('#sEmail').value.trim(),hours:$('#sHours').value.trim(),address:$('#sAddr').value.trim(),address2:$('#sAddr2').value.trim(),facebook:$('#sFb').value.trim(),instagram:$('#sIg').value.trim(),
       codAdvance:Math.max(0,Math.min(100,Number($('#sAdv').value)||0)),deliveryFee:Number($('#sFee').value)||0,freeOver:Number($('#sFree').value)||0,lowStock:Number($('#sLow').value)||0,
       pay:{cod:$('#sCod').checked,easypaisa:$('#sEp').value.trim(),jazzcash:$('#sJc').value.trim(),bank:$('#sBank').value.trim()}});
     if(!ADF.payMethods(s).length)throw new Error('Keep at least one payment method on.');
