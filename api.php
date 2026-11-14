@@ -171,7 +171,7 @@ function patch_contact() {
     }
     // one time: shops are open 24 hours (owner, 14 Nov 2026)
     $st6 = kv_get('settings');
-    if (is_array($st6) && empty($st6['hrs24'])) { $st6['hours'] = 'Open 24 hours · 7 days a week'; $st6['hrs24'] = 1; kv_set('settings', $st6); }
+    if (is_array($st6) && empty($st6['hrs24b'])) { $st6['hours'] = 'Both shops open 24 hours · 7 days a week'; $st6['hrs24'] = 1; $st6['hrs24b'] = 1; kv_set('settings', $st6); }
     // one time: second shop (Hussain Chowk, Gulberg III)
     $st5 = kv_get('settings');
     if (is_array($st5) && empty($st5['addr2v1'])) {
