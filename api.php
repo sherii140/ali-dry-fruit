@@ -169,6 +169,9 @@ function patch_contact() {
             kv_set('products', $seed['products']); $st3['cat16'] = 1; kv_set('settings', $st3);
         }
     }
+    // one time: Hussain Chowk branch phone (owner, 14 Nov 2026)
+    $st7 = kv_get('settings');
+    if (is_array($st7) && empty($st7['ph2v1'])) { if (empty($st7['phone2'])) $st7['phone2'] = '+92 307 9898705'; $st7['ph2v1'] = 1; kv_set('settings', $st7); }
     // one time: shops are open 24 hours (owner, 14 Nov 2026)
     $st6 = kv_get('settings');
     if (is_array($st6) && empty($st6['hrs24b'])) { $st6['hours'] = 'Both shops open 24 hours · 7 days a week'; $st6['hrs24'] = 1; $st6['hrs24b'] = 1; kv_set('settings', $st6); }

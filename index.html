@@ -876,10 +876,10 @@ function renderChrome(){
   ic.wa='<path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.2A8.5 8.5 0 1 1 21 12Z"/>';
   const tel=v=>'tel:'+String(v).replace(/[^\d+]/g,''),waD=String(s.whatsapp||'').replace(/\D/g,''),waNum=!waD?'':waD.length===12&&waD.startsWith('92')?`+92 ${waD.slice(2,5)} ${waD.slice(5)}`:'+'+waD;
   const map=a=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('Ali Dry Fruit '+a);
-  const href={phone:s.phone&&tel(s.phone),wa:s.whatsapp&&waLink('Hi '+(s.storeName||'Ali Dry Fruit')+', I would like to place an order.'),mail:s.email&&'mailto:'+s.email,pin:s.address&&map(s.address),pin2:s.address2&&map(s.address2)};
-  ic.pin2=ic.pin;
-  const lbl={phone:'Call: ',wa:'WhatsApp: ',pin:s.address2?'Shop 1: ':'',pin2:'Shop 2: '};
-  $('#fContact').innerHTML=[['phone',s.phone],['wa',waNum],['mail',s.email],['pin',s.address],['pin2',s.address2],['clock',s.hours]].filter(x=>x[1]).map(([k,v])=>{const inner=`<svg viewBox="0 0 24 24">${ic[k]}</svg><span>${lbl[k]||''}${esc(v)}</span>`;return `<li>${href[k]?`<a href="${esc(href[k])}"${k==='wa'||k==='pin'||k==='pin2'?' target="_blank" rel="noopener"':''}>${inner}</a>`:inner}</li>`;}).join('');
+  const href={phone:s.phone&&tel(s.phone),wa:s.whatsapp&&waLink('Hi '+(s.storeName||'Ali Dry Fruit')+', I would like to place an order.'),mail:s.email&&'mailto:'+s.email,pin:s.address&&map(s.address),pin2:s.address2&&map(s.address2),phone2:s.phone2&&tel(s.phone2)};
+  ic.pin2=ic.pin;ic.phone2=ic.phone;
+  const lbl={phone:s.phone2?'Call (Shop 1): ':'Call: ',wa:'WhatsApp: ',pin:s.address2?'Shop 1: ':'',pin2:'Shop 2: ',phone2:'Call (Shop 2): '};
+  $('#fContact').innerHTML=[['phone',s.phone],['wa',waNum],['mail',s.email],['pin',s.address],['pin2',s.address2],['phone2',s.phone2],['clock',s.hours]].filter(x=>x[1]).map(([k,v])=>{const inner=`<svg viewBox="0 0 24 24">${ic[k]}</svg><span>${lbl[k]||''}${esc(v)}</span>`;return `<li>${href[k]?`<a href="${esc(href[k])}"${k==='wa'||k==='pin'||k==='pin2'?' target="_blank" rel="noopener"':''}>${inner}</a>`:inner}</li>`;}).join('');
   $('#fLinks').innerHTML=`<li><button data-cat="all">Shop All</button></li>`+tops().slice(0,9).map(c=>`<li><button data-cat="${esc(c.id)}">${esc(c.name)}</button></li>`).join('');
   $('#fPay').innerHTML=ADF.payMethods(s).map(k=>`<span>${PAYN[k]}</span>`).join('');
   const fee=Number(s.deliveryFee)||0,free=Number(s.freeOver)||0;
