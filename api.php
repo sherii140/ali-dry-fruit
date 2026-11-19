@@ -25,12 +25,14 @@ const UPLOAD_DIR = __DIR__ . '/uploads';
 const SEED_FILE  = __DIR__ . '/assets/seed.js';
 const MAX_UPLOAD = 6 * 1024 * 1024;
 
+if (!defined('ADF_LIB')) {   // seo.php includes this file only for its data functions
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
 header_remove('X-Powered-By');
+}
 ini_set('display_errors', '0');
 
 function out($d, $code = 200) {
@@ -380,6 +382,7 @@ function str($v, $max) { return mb_substr(trim((string)$v), 0, $max); }
 function public_settings($s) { unset($s['admin']); return $s; }
 
 /* ---------------- routes ---------------- */
+if (defined('ADF_LIB')) return;
 $a = $_GET['a'] ?? '';
 $isPost = ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
 

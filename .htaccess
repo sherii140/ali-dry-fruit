@@ -1,6 +1,15 @@
 Options -Indexes
 DirectoryIndex index.html
 
+# SEO: clean URLs rendered by seo.php (title, description, structured data, crawlable content)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^sitemap\.xml$ seo.php?sitemap=1 [L,QSA]
+  RewriteRule ^dry-fruits/([a-z0-9-]+)/?$ seo.php?c=$1 [L,QSA,NC]
+  RewriteRule ^product/([a-z0-9-]+)/?$ seo.php?p=$1 [L,QSA,NC]
+  RewriteRule ^(index\.html)?$ seo.php [L,QSA]
+</IfModule>
+
 <IfModule mod_headers.c>
   <FilesMatch "\.(html|js)$">
     Header set Cache-Control "no-cache"

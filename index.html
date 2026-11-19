@@ -240,8 +240,8 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:va
 .wish.on svg{fill:currentColor}
 .pbody{padding:10px 10px 12px;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;flex:1}
 .pbody h3{font-size:13.5px;font-weight:600;line-height:1.3;min-height:2.6em;display:flex;align-items:center;justify-content:center}
-.pbody h3 button{border:0;background:none;font-weight:600}
-.pbody h3 button:hover{color:var(--green)}
+.pbody h3 button,.pbody h3 a{border:0;background:none;font-weight:600;color:inherit;text-decoration:none}
+.pbody h3 button:hover,.pbody h3 a:hover{color:var(--green)}
 .price{display:flex;align-items:baseline;justify-content:center;gap:7px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
 .price b{font-size:14px;font-weight:700;color:var(--green-d)}
 .price s{font-size:11.5px;color:var(--muted)}
@@ -602,6 +602,17 @@ footer{background:#0b2a0f;border-top:0;color:rgba(255,255,255,.78)}
   .wafab{width:54px;height:54px;padding:0;justify-content:center}.wafab span{display:none}
   .add{padding:9px 6px}
 }
+#seoContent{margin-top:48px;border-top:1px solid var(--line);background:var(--paper)}
+.seo-block{padding-block:34px 40px;color:var(--muted);font-size:13.5px;line-height:1.7}
+.seo-block h1,.seo-block h2{font-family:var(--display);color:var(--green-d);font-size:clamp(18px,2.2vw,22px);line-height:1.3;margin:0 0 10px}
+.seo-block h3{font-size:14px;color:var(--ink);margin:18px 0 8px}
+.seo-block p{max-width:80ch;margin:0 0 12px}
+.seo-block a{color:var(--green);font-weight:500}
+.seo-links,.seo-cols{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 18px;margin:8px 0 0;padding:0}
+.seo-links span,.seo-cols span{color:var(--muted);font-size:12px}
+.seo-price{border-collapse:collapse;margin:6px 0 16px;min-width:240px;background:#fff}
+.seo-price caption{text-align:left;font-weight:600;color:var(--ink);padding-bottom:6px}
+.seo-price th,.seo-price td{border:1px solid var(--line);padding:7px 12px;text-align:left}
 @media(hover:none){.pc:hover,.cat:hover{transform:none}.pc:hover .pimg>img{transform:none}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.mq-track{animation-duration:55s!important}}
 </style>
@@ -830,9 +841,11 @@ const TRK=(()=>{
 })();
 const px=(ev,data,opt)=>{try{if(window.fbq)fbq('track',ev,Object.assign({currency:'PKR'},data||{}),opt||{});}catch(e){}
   try{const m={ViewContent:'view',AddToCart:'atc',InitiateCheckout:'ic',Contact:'wa'}[ev];if(m)TRK.send(m,{pid:(data&&data.content_ids&&data.content_ids[0])||''});}catch(e){}};
-const PAGE_COL=new URLSearchParams(location.search).get('collection')||'';
+const PATHM=location.pathname.match(/^\/(dry-fruits|product)\/([a-z0-9-]+)\/?$/i);
+const PAGE_COL=(PATHM&&PATHM[1]==='dry-fruits'?PATHM[2]:'')||new URLSearchParams(location.search).get('collection')||'';
+const PAGE_PROD=PATHM&&PATHM[1]==='product'?PATHM[2]:'';
 let st={cat:PAGE_COL||'all',q:'',wish:false,more:0};
-const colURL=id=>location.pathname+(id&&id!=='all'?'?collection='+encodeURIComponent(id):'');
+const colURL=id=>id&&id!=='all'?'/dry-fruits/'+encodeURIComponent(id)+'/':'/';
 function goCol(id){location.href=colURL(id)+(id&&id!=='all'?'':'#sale');}
 let view='cart', last=null;
 
@@ -1020,7 +1033,7 @@ function card(p){
       ${allOut?'<div class="soldout"><span>Sold out</span></div>':''}
     </div>
     <div class="pbody">
-      <h3><button data-open="${esc(p.id)}">${esc(p.name)}</button></h3>
+      <h3><a href="/product/${esc(p.id)}/" data-open="${esc(p.id)}">${esc(p.name)}</a></h3>
       <div class="price"><b data-now>${fmt(v.price)}</b>${Number(v.compare)>Number(v.price)?`<s data-was>${fmt(v.compare)}</s>`:''}</div>
       <div class="wts">${p.variants.map(x=>`<button class="${x.w===v.w?'on':''}${hasStock(x)?'':' out'}" data-w="${esc(x.w)}" aria-pressed="${x.w===v.w}">${esc(x.w)}</button>`).join('')}</div>
       <button class="add" data-add="${esc(p.id)}" ${hasStock(v)?'':'disabled'}>${ICON.bag}<span>${hasStock(v)?'Add to Cart':'Sold Out'}</span></button>
@@ -1258,12 +1271,12 @@ document.addEventListener('click',e=>{const wa=e.target.closest&&e.target.closes
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,a,[data-open]');if(!t)return;
   const d=t.dataset;
-  if(t.classList.contains('brand')){e.preventDefault();try{history.scrollRestoration='manual';}catch(x){}closeAll();window.scrollTo(0,0);const home=location.pathname;if(location.search||location.hash)location.href=home;else location.reload();return;}
+  if(t.classList.contains('brand')){e.preventDefault();try{history.scrollRestoration='manual';}catch(x){}closeAll();window.scrollTo(0,0);const home='/';if(location.pathname!=='/'||location.search||location.hash)location.href=home;else location.reload();return;}
   if(d.close!==undefined){closeAll();return;}
   if(d.link){e.preventDefault();handleLink(d.link);return;}
   if(d.cat){e.preventDefault();closeAll();if(d.cat==='all'&&!PAGE_COL){setCat('all',true);return;}goCol(d.cat);return;}
   if(d.wish){e.stopPropagation();toggleWish(d.wish);return;}
-  if(d.open){openQV(d.open);return;}
+  if(d.open){if(t.tagName==='A')e.preventDefault();openQV(d.open);return;}
   if(d.thumb!==undefined){const p=prod($('#qv .info').dataset.pid);$('#qvMain').innerHTML=`<img src="${src(p.images[+d.thumb])}" alt="${esc(p.name)}">`;$$('#qv .thumbs button').forEach(b=>b.classList.toggle('on',b===t));return;}
   if(d.w){const box=t.closest('[data-pid]'),p=prod(box.dataset.pid);sel[p.id]=d.w;const v=variant(p);
     $$(`[data-pid="${CSS.escape(p.id)}"]`).forEach(c=>{
@@ -1344,6 +1357,7 @@ addEventListener('hashchange',adminHash);adminHash();
 renderAll();
 ADF.init().then(async m=>{
   try{D=await ADF.store();renderAll();}catch(e){console.warn(e);}
+  if(PAGE_PROD&&prod(PAGE_PROD))setTimeout(()=>openQV(PAGE_PROD),300);
   if(m==='local')addEventListener('storage',async ev=>{if(ev.key==='adf_db_v1'){D=await ADF.store();renderAll();}});
 });
 </script>
